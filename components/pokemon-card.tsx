@@ -27,6 +27,7 @@ interface EncounterLocation {
   locationArea: string;
   methods: string[];
   games: string[];
+  maxEncounterRate: number;
 }
 
 export function PokemonCard({
@@ -84,13 +85,24 @@ export function PokemonCard({
             ...new Set(relevantVersions.map((vd: any) => vd.version.name)),
           ];
 
+          // Calculate max encounter rate across all versions and methods for this location
+          const maxEncounterRate = Math.max(
+            ...relevantVersions.flatMap((vd: any) =>
+              vd.encounter_details.map((ed: any) => ed.chance)
+            )
+          );
+
           filteredLocations.push({
             locationArea: locationName,
             methods,
             games,
+            maxEncounterRate,
           });
         }
       });
+
+      // Sort by encounter rate (highest first)
+      filteredLocations.sort((a, b) => b.maxEncounterRate - a.maxEncounterRate);
 
       setLocations(filteredLocations);
     } catch (error) {
@@ -178,21 +190,51 @@ export function PokemonCard({
             {loading ? (
               <p className="text-sm text-muted-foreground">Loading locations...</p>
             ) : locations.length > 0 ? (
-              <div className="space-y-3">
-                {locations.map((loc, idx) => (
-                  <div
-                    key={idx}
-                    className="border rounded-lg p-3 space-y-1"
-                  >
-                    <p className="font-medium">{loc.locationArea}</p>
+              <div className="space-y-4">
+                {/* Recommended Location */}
+                <div>
+                  <h4 className="text-sm font-semibold text-primary mb-2">
+                    ⭐ Recommended Location
+                  </h4>
+                  <div className="border-2 border-primary rounded-lg p-3 space-y-1 bg-primary/5">
+                    <p className="font-medium">{locations[0].locationArea}</p>
                     <p className="text-sm text-muted-foreground">
-                      Games: {loc.games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")}
+                      Games: {locations[0].games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Methods: {loc.methods.map(m => m.split("-").join(" ")).join(", ")}
+                      Methods: {locations[0].methods.map(m => m.split("-").join(" ")).join(", ")}
+                    </p>
+                    <p className="text-sm font-semibold text-primary">
+                      Encounter Rate: {locations[0].maxEncounterRate}%
                     </p>
                   </div>
-                ))}
+                </div>
+
+                {/* Other Locations */}
+                {locations.length > 1 && (
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2">Other Locations</h4>
+                    <div className="space-y-3">
+                      {locations.slice(1).map((loc, idx) => (
+                        <div
+                          key={idx}
+                          className="border rounded-lg p-3 space-y-1"
+                        >
+                          <p className="font-medium">{loc.locationArea}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Games: {loc.games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Methods: {loc.methods.map(m => m.split("-").join(" ")).join(", ")}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Encounter Rate: {loc.maxEncounterRate}%
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">

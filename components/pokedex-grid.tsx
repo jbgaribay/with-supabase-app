@@ -68,7 +68,7 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames }: Poked
             .then((data) => ({
               id: data.id,
               name: data.name,
-              sprite: data.sprites.versions["generation-i"]["red-blue"].front_default,
+              sprite: data.sprites.versions["generation-i"]["red-blue"].front_transparent,
             }));
         });
 
@@ -117,7 +117,7 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames }: Poked
                     width={56}
                     height={56}
                     className="pixelated"
-                    style={{ mixBlendMode: isCaught ? 'normal' : 'multiply' }}
+                    style={{ opacity: isCaught ? 1 : 0.4 }}
                     unoptimized
                   />
                 )}
