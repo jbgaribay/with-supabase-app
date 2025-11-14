@@ -166,7 +166,7 @@ export function PokemonCard({
                 width={112}
                 height={112}
                 className="pixelated"
-                style={{ mixBlendMode: isCaught ? "normal" : "multiply" }}
+                style={{ opacity: isCaught ? 1 : 0.6 }}
                 unoptimized
               />
             )}
