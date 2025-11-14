@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
 
 interface Pokemon {
   id: number;
@@ -21,11 +22,26 @@ export function PokedexGrid({ caughtPokemonIds, journeyId }: PokedexGridProps) {
   const [pokemon, setPokemon] = useState<Pokemon[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [caught, setCaught] = useState(caughtPokemonIds);
 
   const totalPages = Math.ceil(151 / POKEMON_PER_PAGE);
   const startIndex = (currentPage - 1) * POKEMON_PER_PAGE;
   const endIndex = startIndex + POKEMON_PER_PAGE;
   const currentPokemon = pokemon.slice(startIndex, endIndex);
+
+  const testCatchBulbasaur = async () => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("caught_pokemon")
+      .insert({
+        journey_id: journeyId,
+        pokemon_id: 1,
+      });
+    
+    if (!error) {
+      setCaught(new Set([...caught, 1]));
+    }
+  };
 
   useEffect(() => {
     const fetchPokemon = async () => {
@@ -63,9 +79,14 @@ export function PokedexGrid({ caughtPokemonIds, journeyId }: PokedexGridProps) {
 
   return (
     <div className="space-y-4">
+      {/* Test button - remove this later */}
+      <Button onClick={testCatchBulbasaur} variant="outline" size="sm">
+        Test: Catch Bulbasaur (#001)
+      </Button>
+
       <div className="grid grid-cols-5 gap-1">
         {currentPokemon.map((p) => {
-          const isCaught = caughtPokemonIds.has(p.id);
+          const isCaught = caught.has(p.id);
           
           return (
             <div
@@ -80,6 +101,7 @@ export function PokedexGrid({ caughtPokemonIds, journeyId }: PokedexGridProps) {
                     width={56}
                     height={56}
                     className="pixelated"
+                    style={{ mixBlendMode: isCaught ? 'normal' : 'multiply' }}
                     unoptimized
                   />
                 )}
