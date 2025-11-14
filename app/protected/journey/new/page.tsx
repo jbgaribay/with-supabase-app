@@ -4,6 +4,8 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -15,21 +17,45 @@ const GAMES = [
 
 export default function NewJourneyPage() {
   const [selectedGames, setSelectedGames] = useState<string[]>([]);
+  const [hostGame, setHostGame] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const toggleGame = (gameCode: string) => {
-    setSelectedGames((prev) =>
-      prev.includes(gameCode)
+    setSelectedGames((prev) => {
+      const isRemoving = prev.includes(gameCode);
+      const newGames = isRemoving
         ? prev.filter((g) => g !== gameCode)
-        : [...prev, gameCode]
-    );
+        : [...prev, gameCode];
+      
+      // If removing the host game, clear host selection
+      if (isRemoving && hostGame === gameCode) {
+        setHostGame("");
+      }
+      
+      // If this is the first game selected, auto-set as host
+      if (!isRemoving && prev.length === 0) {
+        setHostGame(gameCode);
+      }
+      
+      return newGames;
+    });
   };
 
   const handleStartJourney = async () => {
     if (selectedGames.length === 0) {
       setError("Please select at least one game");
+      return;
+    }
+
+    if (!hostGame) {
+      setError("Please select a host game");
+      return;
+    }
+
+    if (!selectedGames.includes(hostGame)) {
+      setError("Host game must be one of your selected games");
       return;
     }
 
@@ -50,6 +76,7 @@ export default function NewJourneyPage() {
           user_id: user.id,
           title: "Gen 1 Journey",
           status: "in_progress",
+          host_game_code: hostGame,
         })
         .select()
         .single();
@@ -87,8 +114,9 @@ export default function NewJourneyPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="space-y-3">
+              <h3 className="text-sm font-medium">Select Your Games</h3>
               {GAMES.map((game) => (
                 <div
                   key={game.code}
@@ -110,11 +138,33 @@ export default function NewJourneyPage() {
               ))}
             </div>
 
+            {selectedGames.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium">Select Host Game</h3>
+                <p className="text-xs text-muted-foreground">
+                  The host game is where you want your completed Pokédex
+                </p>
+                <RadioGroup value={hostGame} onValueChange={setHostGame}>
+                  {selectedGames.map((gameCode) => {
+                    const game = GAMES.find((g) => g.code === gameCode);
+                    return (
+                      <div key={gameCode} className="flex items-center space-x-2">
+                        <RadioGroupItem value={gameCode} id={`host-${gameCode}`} />
+                        <Label htmlFor={`host-${gameCode}`} className={game?.color}>
+                          {game?.name}
+                        </Label>
+                      </div>
+                    );
+                  })}
+                </RadioGroup>
+              </div>
+            )}
+
             {error && <p className="text-sm text-red-500">{error}</p>}
 
             <Button
               onClick={handleStartJourney}
-              disabled={isLoading || selectedGames.length === 0}
+              disabled={isLoading || selectedGames.length === 0 || !hostGame}
               className="w-full"
               size="lg"
             >
