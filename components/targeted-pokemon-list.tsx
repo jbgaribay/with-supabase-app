@@ -6,12 +6,24 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+interface LocationDetails {
+  locationArea: string;
+  methods: string[];
+  games: string[];
+  maxEncounterRate: number;
+}
+
+interface EvolutionInfo {
+  fromPokemon: string;
+  fromPokemonId: number;
+  method: string;
+}
 
 interface TargetedPokemon {
   id: string;
@@ -19,7 +31,9 @@ interface TargetedPokemon {
   pokemon_name: string;
   sprite: string;
   selected_location: string;
-  available_locations: string[];
+  available_locations: LocationDetails[];
+  selectedLocationDetails: LocationDetails | null;
+  evolutionInfo: EvolutionInfo | null;
 }
 
 interface TargetedPokemonListProps {
@@ -30,6 +44,8 @@ interface TargetedPokemonListProps {
 export function TargetedPokemonList({ journeyId, journeyGames }: TargetedPokemonListProps) {
   const [targets, setTargets] = useState<TargetedPokemon[]>([]);
   const [loading, setLoading] = useState(true);
+  const [locationDialogOpen, setLocationDialogOpen] = useState(false);
+  const [selectedTarget, setSelectedTarget] = useState<TargetedPokemon | null>(null);
 
   useEffect(() => {
     fetchTargets();
@@ -64,7 +80,7 @@ export function TargetedPokemonList({ journeyId, journeyGames }: TargetedPokemon
           const encountersData = await encountersResponse.json();
 
           // Filter locations for journey games
-          const availableLocations: string[] = [];
+          const availableLocations: LocationDetails[] = [];
           encountersData.forEach((encounter: any) => {
             const locationName = encounter.location_area.name
               .split("-")
@@ -75,18 +91,121 @@ export function TargetedPokemonList({ journeyId, journeyGames }: TargetedPokemon
               journeyGames.includes(vd.version.name)
             );
 
-            if (relevantVersions.length > 0 && !availableLocations.includes(locationName)) {
-              availableLocations.push(locationName);
+            if (relevantVersions.length > 0) {
+              const methods = [
+                ...new Set(
+                  relevantVersions.flatMap((vd: any) =>
+                    vd.encounter_details.map((ed: any) => ed.method.name)
+                  )
+                ),
+              ];
+
+              const games = [
+                ...new Set(relevantVersions.map((vd: any) => vd.version.name)),
+              ];
+
+              const maxEncounterRate = Math.max(
+                ...relevantVersions.flatMap((vd: any) =>
+                  vd.encounter_details.map((ed: any) => ed.chance)
+                )
+              );
+
+              // Check if location already exists (avoid duplicates)
+              if (!availableLocations.find(loc => loc.locationArea === locationName)) {
+                availableLocations.push({
+                  locationArea: locationName,
+                  methods,
+                  games,
+                  maxEncounterRate,
+                });
+              }
             }
           });
+
+          // Sort by encounter rate
+          availableLocations.sort((a, b) => b.maxEncounterRate - a.maxEncounterRate);
+
+          // Fetch evolution info
+          let evolutionInfo: EvolutionInfo | null = null;
+          try {
+            const speciesResponse = await fetch(
+              `https://pokeapi.co/api/v2/pokemon-species/${target.pokemon_id}`
+            );
+            const speciesData = await speciesResponse.json();
+
+            const evolutionResponse = await fetch(speciesData.evolution_chain.url);
+            const evolutionData = await evolutionResponse.json();
+
+            const findEvolutionDetails = (chain: any): EvolutionInfo | null => {
+              if (chain.evolves_to) {
+                for (const evolution of chain.evolves_to) {
+                  if (evolution.species.name === pokemonData.name) {
+                    const detail = evolution.evolution_details[0];
+                    const fromPokemonName = chain.species.name;
+                    const fromPokemonId = parseInt(chain.species.url.split("/").slice(-2, -1)[0]);
+
+                    let method = "";
+
+                    if (detail.min_level) {
+                      method = `Level ${detail.min_level}`;
+                    } else if (detail.item) {
+                      const itemName = detail.item.name
+                        .split("-")
+                        .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                        .join(" ");
+                      method = `Use ${itemName}`;
+                    } else if (detail.trigger.name === "trade") {
+                      if (detail.held_item) {
+                        const itemName = detail.held_item.name
+                          .split("-")
+                          .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                          .join(" ");
+                        method = `Trade while holding ${itemName}`;
+                      } else {
+                        method = "Trade";
+                      }
+                    } else if (detail.trigger.name === "use-item") {
+                      const itemName = detail.item.name
+                        .split("-")
+                        .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                        .join(" ");
+                      method = `Use ${itemName}`;
+                    }
+
+                    return {
+                      fromPokemon: fromPokemonName,
+                      fromPokemonId,
+                      method,
+                    };
+                  }
+
+                  const result = findEvolutionDetails(evolution);
+                  if (result) return result;
+                }
+              }
+
+              return null;
+            };
+
+            evolutionInfo = findEvolutionDetails(evolutionData.chain);
+          } catch (error) {
+            console.error("Error fetching evolution info:", error);
+          }
+
+          // Find the selected location details
+          const selectedLocationDetails = availableLocations.find(
+            loc => loc.locationArea === target.selected_location
+          ) || availableLocations[0] || null;
 
           return {
             id: target.id,
             pokemon_id: target.pokemon_id,
             pokemon_name: pokemonData.name,
             sprite: pokemonData.sprites.versions["generation-i"]["red-blue"].front_transparent,
-            selected_location: target.selected_location || availableLocations[0] || "Unknown",
+            selected_location: target.selected_location || availableLocations[0]?.locationArea || "Evolution",
             available_locations: availableLocations,
+            selectedLocationDetails,
+            evolutionInfo,
           };
         })
       );
@@ -111,7 +230,7 @@ export function TargetedPokemonList({ journeyId, journeyGames }: TargetedPokemon
     }
   };
 
-  const handleLocationChange = async (targetId: string, newLocation: string) => {
+  const handleLocationChange = async (targetId: string, newLocation: string, newLocationDetails?: LocationDetails) => {
     const supabase = createClient();
     const { error } = await supabase
       .from("targeted_pokemon")
@@ -121,9 +240,16 @@ export function TargetedPokemonList({ journeyId, journeyGames }: TargetedPokemon
     if (!error) {
       setTargets((prev) =>
         prev.map((t) =>
-          t.id === targetId ? { ...t, selected_location: newLocation } : t
+          t.id === targetId 
+            ? { 
+                ...t, 
+                selected_location: newLocation,
+                selectedLocationDetails: newLocationDetails || null
+              } 
+            : t
         )
       );
+      setLocationDialogOpen(false);
     }
   };
 
@@ -185,30 +311,121 @@ export function TargetedPokemonList({ journeyId, journeyGames }: TargetedPokemon
               </Button>
             </div>
 
-            {target.available_locations.length > 0 ? (
-              <Select
-                value={target.selected_location}
-                onValueChange={(value) => handleLocationChange(target.id, value)}
+            {target.selected_location === "Evolution" && target.evolutionInfo ? (
+              <div
+                className="border rounded-lg p-2 cursor-pointer hover:bg-accent transition-colors"
+                onClick={() => {
+                  setSelectedTarget(target);
+                  setLocationDialogOpen(true);
+                }}
               >
-                <SelectTrigger className="w-full text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {target.available_locations.map((loc) => (
-                    <SelectItem key={loc} value={loc} className="text-xs">
-                      {loc}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <p className="font-medium text-sm">Evolution</p>
+                <p className="text-xs">
+                  Evolve from{" "}
+                  <span className="font-semibold capitalize">{target.evolutionInfo.fromPokemon}</span>
+                  {" "}#{target.evolutionInfo.fromPokemonId.toString().padStart(3, "0")}
+                </p>
+                <p className="text-xs font-semibold">{target.evolutionInfo.method}</p>
+              </div>
+            ) : target.selectedLocationDetails ? (
+              <div
+                className="border rounded-lg p-2 cursor-pointer hover:bg-accent transition-colors"
+                onClick={() => {
+                  setSelectedTarget(target);
+                  setLocationDialogOpen(true);
+                }}
+              >
+                <p className="font-medium text-sm">{target.selectedLocationDetails.locationArea}</p>
+                <p className="text-xs text-muted-foreground">
+                  Games: {target.selectedLocationDetails.games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Methods: {target.selectedLocationDetails.methods.map(m => m.split("-").join(" ")).join(", ")}
+                </p>
+                <p className="text-xs font-semibold">
+                  Encounter Rate: {target.selectedLocationDetails.maxEncounterRate}%
+                </p>
+              </div>
+            ) : target.evolutionInfo ? (
+              <div
+                className="border rounded-lg p-2 cursor-pointer hover:bg-accent transition-colors"
+                onClick={() => {
+                  setSelectedTarget(target);
+                  setLocationDialogOpen(true);
+                }}
+              >
+                <p className="font-medium text-sm">Evolution</p>
+                <p className="text-xs">
+                  Evolve from{" "}
+                  <span className="font-semibold capitalize">{target.evolutionInfo.fromPokemon}</span>
+                  {" "}#{target.evolutionInfo.fromPokemonId.toString().padStart(3, "0")}
+                </p>
+                <p className="text-xs font-semibold">{target.evolutionInfo.method}</p>
+              </div>
             ) : (
               <p className="text-xs text-muted-foreground">
-                Evolution/Trading only
+                No location data available
               </p>
             )}
           </div>
         ))}
       </div>
+
+      {/* Location Selector Dialog */}
+      <Dialog open={locationDialogOpen} onOpenChange={setLocationDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Select Location for{" "}
+              <span className="capitalize">{selectedTarget?.pokemon_name}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {/* Wild Encounter Locations */}
+            {selectedTarget?.available_locations.map((loc, idx) => (
+              <div
+                key={idx}
+                className="border rounded-lg p-3 cursor-pointer hover:bg-accent transition-colors"
+                onClick={() => handleLocationChange(selectedTarget.id, loc.locationArea, loc)}
+              >
+                <p className="font-medium">{loc.locationArea}</p>
+                <p className="text-sm text-muted-foreground">
+                  Games: {loc.games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Methods: {loc.methods.map(m => m.split("-").join(" ")).join(", ")}
+                </p>
+                <p className="text-sm font-semibold">
+                  Encounter Rate: {loc.maxEncounterRate}%
+                </p>
+              </div>
+            ))}
+
+            {/* Evolution Option */}
+            {selectedTarget?.evolutionInfo && (
+              <div
+                className="border-2 border-primary rounded-lg p-3 cursor-pointer hover:bg-accent transition-colors bg-primary/5"
+                onClick={() => handleLocationChange(selectedTarget.id, "Evolution")}
+              >
+                <p className="font-medium text-primary">Evolution</p>
+                <p className="text-sm">
+                  Evolve from{" "}
+                  <span className="font-semibold capitalize">{selectedTarget.evolutionInfo.fromPokemon}</span>
+                  {" "}#{selectedTarget.evolutionInfo.fromPokemonId.toString().padStart(3, "0")}
+                </p>
+                <p className="text-sm font-semibold">{selectedTarget.evolutionInfo.method}</p>
+              </div>
+            )}
+
+            {/* No options available */}
+            {selectedTarget?.available_locations.length === 0 && !selectedTarget?.evolutionInfo && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No location data available for this Pokémon
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
