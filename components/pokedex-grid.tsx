@@ -69,13 +69,13 @@ export function PokedexGrid({ caughtPokemonIds, journeyId }: PokedexGridProps) {
                   alt={p.name}
                   width={56}
                   height={56}
-                  className={`pixelated ${!isCaught ? "brightness-0 opacity-30" : ""}`}
+                  className="pixelated"
                   unoptimized
                 />
               )}
             </div>
-            <p className={`text-xs text-center capitalize mt-1 ${!isCaught ? "text-muted-foreground" : ""}`}>
-              {isCaught ? p.name : "???"}
+            <p className="text-xs text-center capitalize mt-1">
+              {p.name}
             </p>
             <p className="text-xs text-muted-foreground">#{p.id.toString().padStart(3, "0")}</p>
           </div>
