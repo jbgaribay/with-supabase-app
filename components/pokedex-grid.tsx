@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { PokemonCard } from "@/components/pokemon-card";
 
 interface Pokemon {
   id: number;
@@ -14,20 +15,34 @@ interface Pokemon {
 interface PokedexGridProps {
   caughtPokemonIds: Set<number>;
   journeyId: string;
+  journeyGames: string[];
 }
 
 const POKEMON_PER_PAGE = 25;
 
-export function PokedexGrid({ caughtPokemonIds, journeyId }: PokedexGridProps) {
+export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames }: PokedexGridProps) {
   const [pokemon, setPokemon] = useState<Pokemon[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [caught, setCaught] = useState(caughtPokemonIds);
+  const [selectedPokemon, setSelectedPokemon] = useState<Pokemon | null>(null);
 
   const totalPages = Math.ceil(151 / POKEMON_PER_PAGE);
   const startIndex = (currentPage - 1) * POKEMON_PER_PAGE;
   const endIndex = startIndex + POKEMON_PER_PAGE;
   const currentPokemon = pokemon.slice(startIndex, endIndex);
+
+  const handleCatchToggle = (pokemonId: number, newCaughtState: boolean) => {
+    setCaught((prev) => {
+      const newSet = new Set(prev);
+      if (newCaughtState) {
+        newSet.add(pokemonId);
+      } else {
+        newSet.delete(pokemonId);
+      }
+      return newSet;
+    });
+  };
 
   const testCatchBulbasaur = async () => {
     const supabase = createClient();
@@ -92,6 +107,7 @@ export function PokedexGrid({ caughtPokemonIds, journeyId }: PokedexGridProps) {
             <div
               key={p.id}
               className="aspect-square border border-foreground/20 bg-background flex flex-col items-center justify-center p-2 hover:bg-accent cursor-pointer transition-colors"
+              onClick={() => setSelectedPokemon(p)}
             >
               <div className="relative w-full h-16 flex items-center justify-center">
                 {p.sprite && (
@@ -136,6 +152,20 @@ export function PokedexGrid({ caughtPokemonIds, journeyId }: PokedexGridProps) {
           Next
         </Button>
       </div>
+
+      {selectedPokemon && (
+        <PokemonCard
+          pokemonId={selectedPokemon.id}
+          pokemonName={selectedPokemon.name}
+          sprite={selectedPokemon.sprite}
+          isOpen={!!selectedPokemon}
+          onClose={() => setSelectedPokemon(null)}
+          isCaught={caught.has(selectedPokemon.id)}
+          journeyId={journeyId}
+          journeyGames={journeyGames}
+          onCatchToggle={handleCatchToggle}
+        />
+      )}
     </div>
   );
 }

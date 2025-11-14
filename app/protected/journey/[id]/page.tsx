@@ -49,7 +49,11 @@ export default async function JourneyPage({
           </p>
         </div>
         
-        <PokedexGrid caughtPokemonIds={caughtIds} journeyId={id} />
+        <PokedexGrid 
+          caughtPokemonIds={caughtIds} 
+          journeyId={id}
+          journeyGames={journey.journey_games.map((g: any) => g.game_code)}
+        />
       </div>
     </div>
   );
