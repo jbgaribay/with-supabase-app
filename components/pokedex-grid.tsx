@@ -26,6 +26,7 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames }: Poked
   const [currentPage, setCurrentPage] = useState(1);
   const [caught, setCaught] = useState(caughtPokemonIds);
   const [selectedPokemon, setSelectedPokemon] = useState<Pokemon | null>(null);
+  const [targeted, setTargeted] = useState<Set<number>>(new Set());
 
   const totalPages = Math.ceil(151 / POKEMON_PER_PAGE);
   const startIndex = (currentPage - 1) * POKEMON_PER_PAGE;
@@ -39,6 +40,18 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames }: Poked
         newSet.add(pokemonId);
       } else {
         newSet.delete(pokemonId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleTargetToggle = (pokemonId: number, pokemonName: string, sprite: string, recommendedLocation: string) => {
+    setTargeted((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(pokemonId)) {
+        newSet.delete(pokemonId);
+      } else {
+        newSet.add(pokemonId);
       }
       return newSet;
     });
@@ -164,6 +177,8 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames }: Poked
           journeyId={journeyId}
           journeyGames={journeyGames}
           onCatchToggle={handleCatchToggle}
+          isTargeted={targeted.has(selectedPokemon.id)}
+          onTargetToggle={handleTargetToggle}
         />
       )}
     </div>

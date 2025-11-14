@@ -21,6 +21,8 @@ interface PokemonCardProps {
   journeyId: string;
   journeyGames: string[];
   onCatchToggle: (pokemonId: number, newCaughtState: boolean) => void;
+  isTargeted: boolean;
+  onTargetToggle: (pokemonId: number, pokemonName: string, sprite: string, recommendedLocation: string) => void;
 }
 
 interface EncounterLocation {
@@ -40,10 +42,13 @@ export function PokemonCard({
   journeyId,
   journeyGames,
   onCatchToggle,
+  isTargeted,
+  onTargetToggle,
 }: PokemonCardProps) {
   const [locations, setLocations] = useState<EncounterLocation[]>([]);
   const [loading, setLoading] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [targeting, setTargeting] = useState(false);
 
   useEffect(() => {
     if (isOpen && pokemonId) {
@@ -148,6 +153,45 @@ export function PokemonCard({
     }
   };
 
+  const handleTargetToggle = async () => {
+    setTargeting(true);
+    const supabase = createClient();
+
+    try {
+      if (isTargeted) {
+        // Untarget - delete from database
+        const { error } = await supabase
+          .from("targeted_pokemon")
+          .delete()
+          .eq("journey_id", journeyId)
+          .eq("pokemon_id", pokemonId);
+
+        if (!error) {
+          onTargetToggle(pokemonId, pokemonName, sprite, "");
+        }
+      } else {
+        // Target - insert into database with recommended location
+        const recommendedLocation = locations.length > 0 ? locations[0].locationArea : "";
+        
+        const { error } = await supabase
+          .from("targeted_pokemon")
+          .insert({
+            journey_id: journeyId,
+            pokemon_id: pokemonId,
+            selected_location: recommendedLocation,
+          });
+
+        if (!error) {
+          onTargetToggle(pokemonId, pokemonName, sprite, recommendedLocation);
+        }
+      }
+    } catch (error) {
+      console.error("Error toggling target status:", error);
+    } finally {
+      setTargeting(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -172,18 +216,31 @@ export function PokemonCard({
             )}
           </div>
 
-          <Button
-            onClick={handleCatchToggle}
-            disabled={toggling}
-            className="w-full"
-            variant={isCaught ? "outline" : "default"}
-          >
-            {toggling
-              ? "Updating..."
-              : isCaught
-              ? "Mark as Uncaught"
-              : "Mark as Caught"}
-          </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              onClick={handleCatchToggle}
+              disabled={toggling}
+              variant={isCaught ? "outline" : "default"}
+            >
+              {toggling
+                ? "Updating..."
+                : isCaught
+                ? "Mark as Uncaught"
+                : "Mark as Caught"}
+            </Button>
+
+            <Button
+              onClick={handleTargetToggle}
+              disabled={targeting || loading}
+              variant={isTargeted ? "destructive" : "secondary"}
+            >
+              {targeting
+                ? "Updating..."
+                : isTargeted
+                ? "Remove Target"
+                : "Target"}
+            </Button>
+          </div>
 
           <div>
             <h3 className="font-semibold text-lg mb-3">Where to Find</h3>

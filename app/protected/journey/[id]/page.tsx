@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PokedexGrid } from "@/components/pokedex-grid";
+import { TargetedPokemonList } from "@/components/targeted-pokemon-list";
 
 export default async function JourneyPage({
   params,
@@ -49,11 +50,19 @@ export default async function JourneyPage({
           </p>
         </div>
         
-        <PokedexGrid 
-          caughtPokemonIds={caughtIds} 
-          journeyId={id}
-          journeyGames={journey.journey_games.map((g: any) => g.game_code)}
-        />
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <PokedexGrid 
+              caughtPokemonIds={caughtIds} 
+              journeyId={id}
+              journeyGames={journey.journey_games.map((g: any) => g.game_code)}
+            />
+          </div>
+          <TargetedPokemonList 
+            journeyId={id}
+            journeyGames={journey.journey_games.map((g: any) => g.game_code)}
+          />
+        </div>
       </div>
     </div>
   );
