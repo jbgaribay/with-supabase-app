@@ -32,6 +32,12 @@ interface EncounterLocation {
   maxEncounterRate: number;
 }
 
+interface EvolutionInfo {
+  fromPokemon: string;
+  fromPokemonId: number;
+  method: string;
+}
+
 export function PokemonCard({
   pokemonId,
   pokemonName,
@@ -46,6 +52,7 @@ export function PokemonCard({
   onTargetToggle,
 }: PokemonCardProps) {
   const [locations, setLocations] = useState<EncounterLocation[]>([]);
+  const [evolutionInfo, setEvolutionInfo] = useState<EvolutionInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [targeting, setTargeting] = useState(false);
@@ -53,6 +60,7 @@ export function PokemonCard({
   useEffect(() => {
     if (isOpen && pokemonId) {
       fetchLocations();
+      fetchEvolutionInfo();
     }
   }, [isOpen, pokemonId]);
 
@@ -114,6 +122,80 @@ export function PokemonCard({
       console.error("Error fetching locations:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchEvolutionInfo = async () => {
+    try {
+      // First get pokemon species to get evolution chain URL
+      const speciesResponse = await fetch(
+        `https://pokeapi.co/api/v2/pokemon-species/${pokemonId}`
+      );
+      const speciesData = await speciesResponse.json();
+
+      // Then get evolution chain
+      const evolutionResponse = await fetch(speciesData.evolution_chain.url);
+      const evolutionData = await evolutionResponse.json();
+
+      // Find this pokemon in the evolution chain
+      const findEvolutionDetails = (chain: any): EvolutionInfo | null => {
+        // Check if this chain entry evolves TO our pokemon
+        if (chain.evolves_to) {
+          for (const evolution of chain.evolves_to) {
+            if (evolution.species.name === pokemonName) {
+              // Found it! Get the evolution details
+              const detail = evolution.evolution_details[0];
+              const fromPokemonName = chain.species.name;
+              const fromPokemonId = parseInt(chain.species.url.split("/").slice(-2, -1)[0]);
+
+              let method = "";
+
+              if (detail.min_level) {
+                method = `Level ${detail.min_level}`;
+              } else if (detail.item) {
+                const itemName = detail.item.name
+                  .split("-")
+                  .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(" ");
+                method = `Use ${itemName}`;
+              } else if (detail.trigger.name === "trade") {
+                if (detail.held_item) {
+                  const itemName = detail.held_item.name
+                    .split("-")
+                    .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(" ");
+                  method = `Trade while holding ${itemName}`;
+                } else {
+                  method = "Trade";
+                }
+              } else if (detail.trigger.name === "use-item") {
+                const itemName = detail.item.name
+                  .split("-")
+                  .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(" ");
+                method = `Use ${itemName}`;
+              }
+
+              return {
+                fromPokemon: fromPokemonName,
+                fromPokemonId,
+                method,
+              };
+            }
+
+            // Recursively check deeper in the chain
+            const result = findEvolutionDetails(evolution);
+            if (result) return result;
+          }
+        }
+
+        return null;
+      };
+
+      const evolInfo = findEvolutionDetails(evolutionData.chain);
+      setEvolutionInfo(evolInfo);
+    } catch (error) {
+      console.error("Error fetching evolution info:", error);
     }
   };
 
@@ -246,57 +328,93 @@ export function PokemonCard({
             <h3 className="font-semibold text-lg mb-3">Where to Find</h3>
             {loading ? (
               <p className="text-sm text-muted-foreground">Loading locations...</p>
-            ) : locations.length > 0 ? (
+            ) : (
               <div className="space-y-4">
-                {/* Recommended Location */}
-                <div>
-                  <h4 className="text-sm font-semibold text-primary mb-2">
-                    ⭐ Recommended Location
-                  </h4>
+                {/* If no encounters but has evolution info */}
+                {locations.length === 0 && evolutionInfo && (
                   <div className="border-2 border-primary rounded-lg p-3 space-y-1 bg-primary/5">
-                    <p className="font-medium">{locations[0].locationArea}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Games: {locations[0].games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")}
+                    <p className="font-semibold text-primary mb-2">Evolution Only</p>
+                    <p className="text-sm">
+                      Evolve from{" "}
+                      <span className="font-semibold capitalize">{evolutionInfo.fromPokemon}</span>
+                      {" "}#{evolutionInfo.fromPokemonId.toString().padStart(3, "0")}
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      Methods: {locations[0].methods.map(m => m.split("-").join(" ")).join(", ")}
-                    </p>
-                    <p className="text-sm font-semibold text-primary">
-                      Encounter Rate: {locations[0].maxEncounterRate}%
-                    </p>
-                  </div>
-                </div>
-
-                {/* Other Locations */}
-                {locations.length > 1 && (
-                  <div>
-                    <h4 className="text-sm font-semibold mb-2">Other Locations</h4>
-                    <div className="space-y-3">
-                      {locations.slice(1).map((loc, idx) => (
-                        <div
-                          key={idx}
-                          className="border rounded-lg p-3 space-y-1"
-                        >
-                          <p className="font-medium">{loc.locationArea}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Games: {loc.games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Methods: {loc.methods.map(m => m.split("-").join(" ")).join(", ")}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Encounter Rate: {loc.maxEncounterRate}%
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+                    <p className="text-sm font-medium">{evolutionInfo.method}</p>
                   </div>
                 )}
+
+                {/* If no encounters and no evolution info */}
+                {locations.length === 0 && !evolutionInfo && (
+                  <p className="text-sm text-muted-foreground">
+                    Not available in your selected games, or only obtainable through special events.
+                  </p>
+                )}
+
+                {/* If has encounters */}
+                {locations.length > 0 && (
+                  <>
+                    {/* Recommended Location */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-primary mb-2">
+                        ⭐ Recommended Location
+                      </h4>
+                      <div className="border-2 border-primary rounded-lg p-3 space-y-1 bg-primary/5">
+                        <p className="font-medium">{locations[0].locationArea}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Games: {locations[0].games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Methods: {locations[0].methods.map(m => m.split("-").join(" ")).join(", ")}
+                        </p>
+                        <p className="text-sm font-semibold text-primary">
+                          Encounter Rate: {locations[0].maxEncounterRate}%
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Other Locations */}
+                    {locations.length > 1 && (
+                      <div>
+                        <h4 className="text-sm font-semibold mb-2">Other Locations</h4>
+                        <div className="space-y-3">
+                          {locations.slice(1).map((loc, idx) => (
+                            <div
+                              key={idx}
+                              className="border rounded-lg p-3 space-y-1"
+                            >
+                              <p className="font-medium">{loc.locationArea}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Games: {loc.games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Methods: {loc.methods.map(m => m.split("-").join(" ")).join(", ")}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Encounter Rate: {loc.maxEncounterRate}%
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Evolution Alternative */}
+                    {evolutionInfo && (
+                      <div>
+                        <h4 className="text-sm font-semibold mb-2">Alternative: Evolution</h4>
+                        <div className="border rounded-lg p-3 space-y-1 bg-muted/30">
+                          <p className="text-sm">
+                            Evolve from{" "}
+                            <span className="font-semibold capitalize">{evolutionInfo.fromPokemon}</span>
+                            {" "}#{evolutionInfo.fromPokemonId.toString().padStart(3, "0")}
+                          </p>
+                          <p className="text-sm font-medium">{evolutionInfo.method}</p>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Not available in your selected games, or only obtainable through evolution/trading.
-              </p>
             )}
           </div>
         </div>
