@@ -349,6 +349,20 @@ export function TargetedPokemonList({ journeyId, journeyGames, caughtPokemonIds 
 
   return (
     <div className="w-80 border-l pl-4 flex flex-col h-full">
+      {/* Progress Bar */}
+      <div className="mb-4 flex-shrink-0">
+        <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+          <span>{caught.size}/151</span>
+          <span>{Math.round((caught.size / 151) * 100)}%</span>
+        </div>
+        <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary transition-all duration-300"
+            style={{ width: `${(caught.size / 151) * 100}%` }}
+          />
+        </div>
+      </div>
+
       <h2 className="text-lg font-semibold mb-4 flex-shrink-0">Targets ({targets.length})</h2>
       <div className="space-y-3 overflow-y-auto pr-2 flex-1">
         {targets.map((target) => (
