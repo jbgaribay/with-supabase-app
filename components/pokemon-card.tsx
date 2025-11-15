@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { getSpriteFromPokemonData } from "@/lib/sprite-utils";
 
 interface PokemonCardProps {
   pokemonId: number;
@@ -248,8 +249,7 @@ export function PokemonCard({
         chain.push({
           name: chainLink.species.name,
           id,
-          sprite: pokemonData.sprites.versions["generation-i"]["red-blue"].front_transparent,
-          evolutionMethod: previousMethod,
+          sprite: getSpriteFromPokemonData(pokemonData, journeyGames),          evolutionMethod: previousMethod,
         });
 
         // Process evolutions

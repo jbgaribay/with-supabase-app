@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { PokemonCard } from "@/components/pokemon-card";
+import { getSpriteFromPokemonData } from "@/lib/sprite-utils";
 
 interface Pokemon {
   id: number;
@@ -82,7 +83,7 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames, targete
             .then((data) => ({
               id: data.id,
               name: data.name,
-              sprite: data.sprites.versions["generation-i"]["red-blue"].front_transparent,
+              sprite: getSpriteFromPokemonData(data, journeyGames),
             }));
         });
 
@@ -96,7 +97,7 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames, targete
     };
 
     fetchPokemon();
-  }, []);
+  }, [journeyGames]);
 
   if (loading) {
     return (

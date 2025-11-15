@@ -5,6 +5,7 @@ import { PokedexGrid } from "@/components/pokedex-grid";
 import { TargetedPokemonList } from "@/components/targeted-pokemon-list";
 import { JourneyNav } from "@/components/journey-nav";
 import { PokemonCard } from "@/components/pokemon-card";
+import { VersionExclusives } from "@/components/version-exclusives";
 
 interface JourneyContentProps {
   journeyId: string;
@@ -109,9 +110,10 @@ export function JourneyContent({
         {/* Version Exclusives Section */}
         <section id="version-exclusives" className="scroll-mt-20">
           <h2 className="text-2xl font-bold mb-4">Version Exclusives</h2>
-          <div className="border rounded-lg p-8 text-center text-muted-foreground">
-            <p>Version Exclusives feature coming soon...</p>
-          </div>
+          <VersionExclusives 
+            journeyGames={journeyGames}
+            caughtPokemonIds={caughtIds}
+          />
         </section>
       </div>
 

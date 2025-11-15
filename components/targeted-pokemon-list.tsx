@@ -5,6 +5,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { X, Check } from "lucide-react";
+import { getSpriteFromPokemonData } from "@/lib/sprite-utils";
 import {
   Dialog,
   DialogContent,
@@ -234,8 +235,7 @@ export function TargetedPokemonList({ journeyId, journeyGames, caughtPokemonIds 
             id: target.id,
             pokemon_id: target.pokemon_id,
             pokemon_name: pokemonData.name,
-            sprite: pokemonData.sprites.versions["generation-i"]["red-blue"].front_transparent,
-            selected_location: target.selected_location || availableLocations[0]?.locationArea || "Evolution",
+            sprite: getSpriteFromPokemonData(pokemonData, journeyGames),            selected_location: target.selected_location || availableLocations[0]?.locationArea || "Evolution",
             available_locations: availableLocations,
             selectedLocationDetails,
             evolutionInfo,
