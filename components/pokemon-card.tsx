@@ -30,6 +30,8 @@ interface EncounterLocation {
   methods: string[];
   games: string[];
   maxEncounterRate: number;
+  minLevel: number;
+  maxLevel: number;
 }
 
 interface EvolutionInfo {
@@ -131,11 +133,24 @@ export function PokemonCard({
             )
           );
 
+          // Get level range
+          const allLevels = relevantVersions.flatMap((vd: any) =>
+            vd.encounter_details.map((ed: any) => ({
+              min: ed.min_level,
+              max: ed.max_level,
+            }))
+          );
+
+          const minLevel = Math.min(...allLevels.map((l) => l.min));
+          const maxLevel = Math.max(...allLevels.map((l) => l.max));
+
           filteredLocations.push({
             locationArea: locationName,
             methods,
             games,
             maxEncounterRate,
+            minLevel,
+            maxLevel,
           });
         }
       });
@@ -531,7 +546,11 @@ export function PokemonCard({
                             <p className="text-xs text-muted-foreground">
                               {locations[0].games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")} • {locations[0].methods.map(m => m.split("-").join(" ")).join(", ")}
                             </p>
-                            <p className="text-xs font-semibold">Rate: {locations[0].maxEncounterRate}%</p>
+                            <p className="text-xs font-semibold">
+                              Level {locations[0].minLevel === locations[0].maxLevel 
+                                ? locations[0].minLevel 
+                                : `${locations[0].minLevel}-${locations[0].maxLevel}`} • Rate: {locations[0].maxEncounterRate}%
+                            </p>
                           </div>
                         </div>
 
@@ -542,7 +561,11 @@ export function PokemonCard({
                             <p className="text-xs text-muted-foreground">
                               {locations[1].games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")} • {locations[1].methods.map(m => m.split("-").join(" ")).join(", ")}
                             </p>
-                            <p className="text-xs">Rate: {locations[1].maxEncounterRate}%</p>
+                            <p className="text-xs">
+                              Level {locations[1].minLevel === locations[1].maxLevel 
+                                ? locations[1].minLevel 
+                                : `${locations[1].minLevel}-${locations[1].maxLevel}`} • Rate: {locations[1].maxEncounterRate}%
+                            </p>
                           </div>
                         )}
 

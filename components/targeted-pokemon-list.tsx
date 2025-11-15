@@ -17,6 +17,8 @@ interface LocationDetails {
   methods: string[];
   games: string[];
   maxEncounterRate: number;
+  minLevel: number;
+  maxLevel: number;
 }
 
 interface EvolutionInfo {
@@ -42,9 +44,10 @@ interface TargetedPokemonListProps {
   caughtPokemonIds?: Set<number>;
   onCatchToggle?: (pokemonId: number, newCaughtState: boolean) => void;
   onTargetRemove?: (pokemonId: number) => void;
+  onOpenPokemonCard?: (pokemonId: number, pokemonName: string, sprite: string) => void;
 }
 
-export function TargetedPokemonList({ journeyId, journeyGames, caughtPokemonIds = new Set(), onCatchToggle, onTargetRemove }: TargetedPokemonListProps) {
+export function TargetedPokemonList({ journeyId, journeyGames, caughtPokemonIds = new Set(), onCatchToggle, onTargetRemove, onOpenPokemonCard }: TargetedPokemonListProps) {
   const [targets, setTargets] = useState<TargetedPokemon[]>([]);
   const [loading, setLoading] = useState(true);
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
@@ -127,6 +130,17 @@ export function TargetedPokemonList({ journeyId, journeyGames, caughtPokemonIds 
                 )
               );
 
+              // Get level range
+              const allLevels = relevantVersions.flatMap((vd: any) =>
+                vd.encounter_details.map((ed: any) => ({
+                  min: ed.min_level,
+                  max: ed.max_level,
+                }))
+              );
+
+              const minLevel = Math.min(...allLevels.map((l) => l.min));
+              const maxLevel = Math.max(...allLevels.map((l) => l.max));
+
               // Check if location already exists (avoid duplicates)
               if (!availableLocations.find(loc => loc.locationArea === locationName)) {
                 availableLocations.push({
@@ -134,6 +148,8 @@ export function TargetedPokemonList({ journeyId, journeyGames, caughtPokemonIds 
                   methods,
                   games,
                   maxEncounterRate,
+                  minLevel,
+                  maxLevel,
                 });
               }
             }
@@ -341,7 +357,10 @@ export function TargetedPokemonList({ journeyId, journeyGames, caughtPokemonIds 
             className="border rounded-lg p-3 space-y-2 bg-card"
           >
             <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
+              <div 
+                className="flex items-center gap-2 cursor-pointer hover:bg-accent/50 rounded p-1 -m-1 transition-colors flex-1"
+                onClick={() => onOpenPokemonCard?.(target.pokemon_id, target.pokemon_name, target.sprite)}
+              >
                 <Image
                   src={target.sprite}
                   alt={target.pokemon_name}
@@ -411,6 +430,11 @@ export function TargetedPokemonList({ journeyId, journeyGames, caughtPokemonIds 
                   Methods: {target.selectedLocationDetails.methods.map(m => m.split("-").join(" ")).join(", ")}
                 </p>
                 <p className="text-xs font-semibold">
+                  Level {target.selectedLocationDetails.minLevel === target.selectedLocationDetails.maxLevel 
+                    ? target.selectedLocationDetails.minLevel 
+                    : `${target.selectedLocationDetails.minLevel}-${target.selectedLocationDetails.maxLevel}`}
+                </p>
+                <p className="text-xs font-semibold">
                   Encounter Rate: {target.selectedLocationDetails.maxEncounterRate}%
                 </p>
               </div>
@@ -462,6 +486,11 @@ export function TargetedPokemonList({ journeyId, journeyGames, caughtPokemonIds 
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Methods: {loc.methods.map(m => m.split("-").join(" ")).join(", ")}
+                </p>
+                <p className="text-sm font-semibold">
+                  Level {loc.minLevel === loc.maxLevel 
+                    ? loc.minLevel 
+                    : `${loc.minLevel}-${loc.maxLevel}`}
                 </p>
                 <p className="text-sm font-semibold">
                   Encounter Rate: {loc.maxEncounterRate}%

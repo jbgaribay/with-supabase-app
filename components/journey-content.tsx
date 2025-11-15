@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PokedexGrid } from "@/components/pokedex-grid";
 import { TargetedPokemonList } from "@/components/targeted-pokemon-list";
 import { JourneyNav } from "@/components/journey-nav";
+import { PokemonCard } from "@/components/pokemon-card";
 
 interface JourneyContentProps {
   journeyId: string;
@@ -26,6 +27,11 @@ export function JourneyContent({
   const [caughtIds, setCaughtIds] = useState(initialCaughtIds);
   const [targetedIds, setTargetedIds] = useState(initialTargetedIds);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedPokemon, setSelectedPokemon] = useState<{
+    id: number;
+    name: string;
+    sprite: string;
+  } | null>(null);
 
   const handleCatchToggle = (pokemonId: number, newCaughtState: boolean) => {
     setCaughtIds((prev) => {
@@ -54,6 +60,14 @@ export function JourneyContent({
     if (isNowTargeted) {
       setRefreshKey(prev => prev + 1);
     }
+  };
+
+  const handleOpenPokemonCard = (pokemonId: number, pokemonName: string, sprite: string) => {
+    setSelectedPokemon({ id: pokemonId, name: pokemonName, sprite });
+  };
+
+  const handleClosePokemonCard = () => {
+    setSelectedPokemon(null);
   };
 
   return (
@@ -86,6 +100,7 @@ export function JourneyContent({
                 caughtPokemonIds={caughtIds}
                 onCatchToggle={handleCatchToggle}
                 onTargetRemove={(pokemonId) => handleTargetToggle(pokemonId, false)}
+                onOpenPokemonCard={handleOpenPokemonCard}
               />
             </div>
           </div>
@@ -99,6 +114,26 @@ export function JourneyContent({
           </div>
         </section>
       </div>
+
+      {/* Pokemon Card Modal from Targets List */}
+      {selectedPokemon && (
+        <PokemonCard
+          pokemonId={selectedPokemon.id}
+          pokemonName={selectedPokemon.name}
+          sprite={selectedPokemon.sprite}
+          isOpen={!!selectedPokemon}
+          onClose={handleClosePokemonCard}
+          isCaught={caughtIds.has(selectedPokemon.id)}
+          journeyId={journeyId}
+          journeyGames={journeyGames}
+          onCatchToggle={handleCatchToggle}
+          isTargeted={targetedIds.has(selectedPokemon.id)}
+          onTargetToggle={(pokemonId, pokemonName, sprite, location) => {
+            const isNowTargeted = !targetedIds.has(pokemonId);
+            handleTargetToggle(pokemonId, isNowTargeted);
+          }}
+        />
+      )}
     </div>
   );
 }
