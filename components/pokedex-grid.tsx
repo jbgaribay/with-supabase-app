@@ -72,20 +72,6 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames, targete
     onTargetToggle(pokemonId, isNowTargeted);
   };
 
-  const testCatchBulbasaur = async () => {
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("caught_pokemon")
-      .insert({
-        journey_id: journeyId,
-        pokemon_id: 1,
-      });
-    
-    if (!error) {
-      setCaught(new Set([...caught, 1]));
-    }
-  };
-
   useEffect(() => {
     const fetchPokemon = async () => {
       try {
@@ -122,11 +108,6 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames, targete
 
   return (
     <div className="space-y-4">
-      {/* Test button - remove this later */}
-      <Button onClick={testCatchBulbasaur} variant="outline" size="sm">
-        Test: Catch Bulbasaur (#001)
-      </Button>
-
       <div className="grid grid-cols-5 gap-1">
         {currentPokemon.map((p) => {
           const isCaught = caught.has(p.id);
