@@ -16,17 +16,29 @@ interface PokedexGridProps {
   caughtPokemonIds: Set<number>;
   journeyId: string;
   journeyGames: string[];
+  targetedPokemonIds: Set<number>;
+  onCatchToggle: (pokemonId: number, newCaughtState: boolean) => void;
+  onTargetToggle: (pokemonId: number, isNowTargeted: boolean) => void;
 }
 
 const POKEMON_PER_PAGE = 25;
 
-export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames }: PokedexGridProps) {
+export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames, targetedPokemonIds, onCatchToggle, onTargetToggle }: PokedexGridProps) {
   const [pokemon, setPokemon] = useState<Pokemon[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [caught, setCaught] = useState(caughtPokemonIds);
   const [selectedPokemon, setSelectedPokemon] = useState<Pokemon | null>(null);
-  const [targeted, setTargeted] = useState<Set<number>>(new Set());
+  const [targeted, setTargeted] = useState<Set<number>>(targetedPokemonIds);
+
+  // Sync local state with props when they change
+  useEffect(() => {
+    setCaught(caughtPokemonIds);
+  }, [caughtPokemonIds]);
+
+  useEffect(() => {
+    setTargeted(targetedPokemonIds);
+  }, [targetedPokemonIds]);
 
   const totalPages = Math.ceil(151 / POKEMON_PER_PAGE);
   const startIndex = (currentPage - 1) * POKEMON_PER_PAGE;
@@ -43,18 +55,21 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames }: Poked
       }
       return newSet;
     });
+    onCatchToggle(pokemonId, newCaughtState);
   };
 
   const handleTargetToggle = (pokemonId: number, pokemonName: string, sprite: string, recommendedLocation: string) => {
+    const isNowTargeted = !targeted.has(pokemonId);
     setTargeted((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(pokemonId)) {
-        newSet.delete(pokemonId);
-      } else {
+      if (isNowTargeted) {
         newSet.add(pokemonId);
+      } else {
+        newSet.delete(pokemonId);
       }
       return newSet;
     });
+    onTargetToggle(pokemonId, isNowTargeted);
   };
 
   const testCatchBulbasaur = async () => {

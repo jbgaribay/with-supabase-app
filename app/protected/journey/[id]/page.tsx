@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { PokedexGrid } from "@/components/pokedex-grid";
-import { TargetedPokemonList } from "@/components/targeted-pokemon-list";
+import { JourneyContent } from "@/components/journey-content";
 
 export default async function JourneyPage({
   params,
@@ -37,6 +36,14 @@ export default async function JourneyPage({
 
   const caughtIds = new Set(caughtPokemon?.map((p) => p.pokemon_id) || []);
 
+  // Get targeted Pokémon for this journey
+  const { data: targetedPokemon } = await supabase
+    .from("targeted_pokemon")
+    .select("pokemon_id")
+    .eq("journey_id", id);
+
+  const targetedIds = new Set(targetedPokemon?.map((p) => p.pokemon_id) || []);
+
   return (
     <div className="flex-1 w-full p-5">
       <div className="max-w-7xl mx-auto">
@@ -50,19 +57,12 @@ export default async function JourneyPage({
           </p>
         </div>
         
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <PokedexGrid 
-              caughtPokemonIds={caughtIds} 
-              journeyId={id}
-              journeyGames={journey.journey_games.map((g: any) => g.game_code)}
-            />
-          </div>
-          <TargetedPokemonList 
-            journeyId={id}
-            journeyGames={journey.journey_games.map((g: any) => g.game_code)}
-          />
-        </div>
+        <JourneyContent
+          journeyId={id}
+          journeyGames={journey.journey_games.map((g: any) => g.game_code)}
+          initialCaughtIds={caughtIds}
+          initialTargetedIds={targetedIds}
+        />
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { X, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -39,16 +39,33 @@ interface TargetedPokemon {
 interface TargetedPokemonListProps {
   journeyId: string;
   journeyGames: string[];
+  caughtPokemonIds?: Set<number>;
+  onCatchToggle?: (pokemonId: number, newCaughtState: boolean) => void;
+  onTargetRemove?: (pokemonId: number) => void;
 }
 
-export function TargetedPokemonList({ journeyId, journeyGames }: TargetedPokemonListProps) {
+export function TargetedPokemonList({ journeyId, journeyGames, caughtPokemonIds = new Set(), onCatchToggle, onTargetRemove }: TargetedPokemonListProps) {
   const [targets, setTargets] = useState<TargetedPokemon[]>([]);
   const [loading, setLoading] = useState(true);
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState<TargetedPokemon | null>(null);
+  const [caught, setCaught] = useState(caughtPokemonIds);
+
+  // Sync local caught state with props when they change
+  useEffect(() => {
+    setCaught(caughtPokemonIds);
+  }, [caughtPokemonIds]);
 
   useEffect(() => {
     fetchTargets();
+    
+    // Refetch when window gains focus (catches updates from modal)
+    const handleFocus = () => fetchTargets();
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [journeyId]);
 
   const fetchTargets = async () => {
@@ -218,7 +235,7 @@ export function TargetedPokemonList({ journeyId, journeyGames }: TargetedPokemon
     }
   };
 
-  const handleRemoveTarget = async (targetId: string) => {
+  const handleRemoveTarget = async (targetId: string, pokemonId: number) => {
     const supabase = createClient();
     const { error } = await supabase
       .from("targeted_pokemon")
@@ -227,6 +244,47 @@ export function TargetedPokemonList({ journeyId, journeyGames }: TargetedPokemon
 
     if (!error) {
       setTargets((prev) => prev.filter((t) => t.id !== targetId));
+      onTargetRemove?.(pokemonId);
+    }
+  };
+
+  const handleCatchToggle = async (pokemonId: number) => {
+    const supabase = createClient();
+    const isCaught = caught.has(pokemonId);
+
+    try {
+      if (isCaught) {
+        // Uncatch
+        const { error } = await supabase
+          .from("caught_pokemon")
+          .delete()
+          .eq("journey_id", journeyId)
+          .eq("pokemon_id", pokemonId);
+
+        if (!error) {
+          setCaught((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(pokemonId);
+            return newSet;
+          });
+          onCatchToggle?.(pokemonId, false);
+        }
+      } else {
+        // Catch
+        const { error } = await supabase
+          .from("caught_pokemon")
+          .insert({
+            journey_id: journeyId,
+            pokemon_id: pokemonId,
+          });
+
+        if (!error) {
+          setCaught((prev) => new Set([...prev, pokemonId]));
+          onCatchToggle?.(pokemonId, true);
+        }
+      }
+    } catch (error) {
+      console.error("Error toggling catch status:", error);
     }
   };
 
@@ -255,7 +313,7 @@ export function TargetedPokemonList({ journeyId, journeyGames }: TargetedPokemon
 
   if (loading) {
     return (
-      <div className="w-80 border-l pl-4">
+      <div className="w-80 border-l pl-4 flex flex-col h-full">
         <h2 className="text-lg font-semibold mb-4">Targets</h2>
         <p className="text-sm text-muted-foreground">Loading targets...</p>
       </div>
@@ -264,7 +322,7 @@ export function TargetedPokemonList({ journeyId, journeyGames }: TargetedPokemon
 
   if (targets.length === 0) {
     return (
-      <div className="w-80 border-l pl-4">
+      <div className="w-80 border-l pl-4 flex flex-col h-full">
         <h2 className="text-lg font-semibold mb-4">Targets</h2>
         <p className="text-sm text-muted-foreground">
           No Pokémon targeted yet. Click on a Pokémon and press "Target" to add it here.
@@ -274,9 +332,9 @@ export function TargetedPokemonList({ journeyId, journeyGames }: TargetedPokemon
   }
 
   return (
-    <div className="w-80 border-l pl-4">
-      <h2 className="text-lg font-semibold mb-4">Targets ({targets.length})</h2>
-      <div className="space-y-3">
+    <div className="w-80 border-l pl-4 flex flex-col h-full">
+      <h2 className="text-lg font-semibold mb-4 flex-shrink-0">Targets ({targets.length})</h2>
+      <div className="space-y-3 overflow-y-auto pr-2 flex-1">
         {targets.map((target) => (
           <div
             key={target.id}
@@ -301,14 +359,24 @@ export function TargetedPokemonList({ journeyId, journeyGames }: TargetedPokemon
                   </p>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={() => handleRemoveTarget(target.id)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-6 w-6 ${caught.has(target.pokemon_id) ? "text-green-600" : ""}`}
+                  onClick={() => handleCatchToggle(target.pokemon_id)}
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => handleRemoveTarget(target.id, target.pokemon_id)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {target.selected_location === "Evolution" && target.evolutionInfo ? (
