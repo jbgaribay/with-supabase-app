@@ -5,11 +5,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PokemonCard } from "@/components/pokemon-card";
 import Image from "next/image";
 import { getSpriteFromPokemonData } from "@/lib/sprite-utils";
 import { MoreHorizontal } from "lucide-react";
 
 interface VersionExclusivesProps {
+  journeyId: string;
   journeyGames: string[];
   caughtPokemonIds: Set<number>;
 }
@@ -25,12 +27,13 @@ interface GroupedExclusives {
   [game: string]: ExclusivePokemon[];
 }
 
-export function VersionExclusives({ journeyGames, caughtPokemonIds }: VersionExclusivesProps) {
+export function VersionExclusives({ journeyId, journeyGames, caughtPokemonIds }: VersionExclusivesProps) {
   const [exclusives, setExclusives] = useState<ExclusivePokemon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedGames, setSelectedGames] = useState<Set<string>>(new Set(journeyGames));
+  const [selectedPokemon, setSelectedPokemon] = useState<ExclusivePokemon | null>(null);
   
   const ITEMS_PER_PAGE = 10;
 
@@ -291,7 +294,11 @@ export function VersionExclusives({ journeyGames, caughtPokemonIds }: VersionExc
                   }
                   
                   return (
-                    <TableRow key={item.id}>
+                    <TableRow 
+                      key={item.id}
+                      className="cursor-pointer hover:bg-accent/50"
+                      onClick={() => setSelectedPokemon(item)}
+                    >
                       <TableCell className="font-mono text-muted-foreground">
                         #{item.id.toString().padStart(3, '0')}
                       </TableCell>
@@ -343,6 +350,23 @@ export function VersionExclusives({ journeyGames, caughtPokemonIds }: VersionExc
             </div>
           )}
         </>
+      )}
+
+      {/* Pokemon Card Modal */}
+      {selectedPokemon && (
+        <PokemonCard
+          pokemonId={selectedPokemon.id}
+          pokemonName={selectedPokemon.name}
+          sprite={selectedPokemon.sprite}
+          isOpen={!!selectedPokemon}
+          onClose={() => setSelectedPokemon(null)}
+          isCaught={caughtPokemonIds.has(selectedPokemon.id)}
+          journeyId={journeyId}
+          journeyGames={journeyGames}
+          onCatchToggle={() => {}} // Read-only for now
+          isTargeted={false}
+          onTargetToggle={() => {}} // Read-only for now
+        />
       )}
     </div>
   );
