@@ -10,8 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import { getSpriteFromPokemonData } from "@/lib/sprite-utils";
-
+import { getSpriteFromPokemonData, getMaxGeneration, isPokemonAvailableInGeneration } from "@/lib/sprite-utils";
 interface PokemonCardProps {
   pokemonId: number;
   pokemonName: string;
@@ -237,37 +236,52 @@ export function PokemonCard({
 
       // Build full evolution chain
       const chain: EvolutionChainMember[] = [];
+      const maxGen = getMaxGeneration(journeyGames);
+            
       const buildChain = async (chainLink: any, previousMethod?: string) => {
         const id = parseInt(chainLink.species.url.split("/").slice(-2, -1)[0]);
         
-        // Fetch sprite for this pokemon
-        const pokemonResponse = await fetch(
-          `https://pokeapi.co/api/v2/pokemon/${id}`
-        );
-        const pokemonData = await pokemonResponse.json();
+        // Check if this Pokemon is available in the user's generation
+        const isCurrentAvailable = isPokemonAvailableInGeneration(id, maxGen);
+        
+        if (isCurrentAvailable) {
+          // Fetch sprite for this pokemon
+          const pokemonResponse = await fetch(
+            `https://pokeapi.co/api/v2/pokemon/${id}`
+          );
+          const pokemonData = await pokemonResponse.json();
 
-        chain.push({
-          name: chainLink.species.name,
-          id,
-          sprite: getSpriteFromPokemonData(pokemonData, journeyGames),          evolutionMethod: previousMethod,
-        });
+          chain.push({
+            name: chainLink.species.name,
+            id,
+            sprite: getSpriteFromPokemonData(pokemonData, journeyGames),
+            evolutionMethod: previousMethod,
+          });
+        }
 
-        // Process evolutions
+        // Process evolutions - continue even if current Pokemon isn't available
+        // (to handle baby Pokemon that aren't in Gen 1)
         if (chainLink.evolves_to && chainLink.evolves_to.length > 0) {
           for (const evolution of chainLink.evolves_to) {
-            const detail = evolution.evolution_details[0];
-            let method = "";
+            const evolutionId = parseInt(evolution.species.url.split("/").slice(-2, -1)[0]);
+            
+            // Only process if the evolution is available OR if we haven't added current Pokemon
+            // (allows skipping baby Pokemon but continuing with the rest of the chain)
+            if (isPokemonAvailableInGeneration(evolutionId, maxGen) || !isCurrentAvailable) {
+              const detail = evolution.evolution_details[0];
+              let method = "";
 
-            if (detail.min_level) {
-              method = `Lv${detail.min_level}`;
-            } else if (detail.item) {
-              const itemName = detail.item.name.split("-").pop();
-              method = itemName?.charAt(0).toUpperCase() + (itemName?.slice(1) || "");
-            } else if (detail.trigger.name === "trade") {
-              method = detail.held_item ? "Trade+Item" : "Trade";
+              if (detail.min_level) {
+                method = `Lv${detail.min_level}`;
+              } else if (detail.item) {
+                const itemName = detail.item.name.split("-").pop();
+                method = itemName?.charAt(0).toUpperCase() + (itemName?.slice(1) || "");
+              } else if (detail.trigger.name === "trade") {
+                method = detail.held_item ? "Trade+Item" : "Trade";
+              }
+
+              await buildChain(evolution, method);
             }
-
-            await buildChain(evolution, method);
           }
         }
       };
