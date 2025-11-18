@@ -366,6 +366,9 @@ export function VersionExclusives({ journeyId, journeyGames, caughtPokemonIds }:
           onCatchToggle={() => {}} // Read-only for now
           isTargeted={false}
           onTargetToggle={() => {}} // Read-only for now
+          onEvolutionClick={(id, name, sprite) => {
+            setSelectedPokemon({ id, name, sprite });
+          }}
         />
       )}
     </div>

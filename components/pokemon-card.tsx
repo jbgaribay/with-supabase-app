@@ -23,6 +23,7 @@ interface PokemonCardProps {
   onCatchToggle: (pokemonId: number, newCaughtState: boolean) => void;
   isTargeted: boolean;
   onTargetToggle: (pokemonId: number, pokemonName: string, sprite: string, recommendedLocation: string) => void;
+  onEvolutionClick?: (pokemonId: number, pokemonName: string, sprite: string) => void;
 }
 
 interface EncounterLocation {
@@ -75,6 +76,7 @@ export function PokemonCard({
   onCatchToggle,
   isTargeted,
   onTargetToggle,
+  onEvolutionClick,
 }: PokemonCardProps) {
   const [locations, setLocations] = useState<EncounterLocation[]>([]);
   const [evolutionInfo, setEvolutionInfo] = useState<EvolutionInfo | null>(null);
@@ -618,9 +620,15 @@ export function PokemonCard({
                 {evolutionChain.map((member, idx) => (
                   <div key={member.id} className="flex items-center gap-3">
                     <div
-                      className={`flex flex-col items-center p-2 rounded-lg border ${
-                        member.name === pokemonName ? "border-primary bg-primary/10" : ""
+                      className={`flex flex-col items-center p-2 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors ${
+                        member.name === pokemonName ?
+                        "border-primary bg-primary/10" : ""
                       }`}
+                      onClick={() => {
+                        if (onEvolutionClick && member.name !== pokemonName) {
+                          onEvolutionClick(member.id, member.name, member.sprite);
+                        }
+                      }}
                     >
                       <Image
                         src={member.sprite}

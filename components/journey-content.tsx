@@ -133,9 +133,10 @@ export function JourneyContent({
           onTargetToggle={(pokemonId, pokemonName, sprite, location) => {
             const isNowTargeted = !targetedIds.has(pokemonId);
             handleTargetToggle(pokemonId, isNowTargeted);
-          }}
-        />
-      )}
+        }}
+        onEvolutionClick={handleOpenPokemonCard}
+      />
+    )}
     </div>
   );
 }

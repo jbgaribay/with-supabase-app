@@ -176,6 +176,9 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames, targete
           onCatchToggle={handleCatchToggle}
           isTargeted={targeted.has(selectedPokemon.id)}
           onTargetToggle={handleTargetToggle}
+          onEvolutionClick={(id, name, sprite) => {
+            setSelectedPokemon({ id, name, sprite });
+          }}
         />
       )}
     </div>
