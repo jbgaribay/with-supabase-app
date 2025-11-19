@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { PokemonCard } from "@/components/pokemon-card";
 import Image from "next/image";
-import { getSpriteFromPokemonData } from "@/lib/sprite-utils";
+import { getSpriteFromPokemonData, getMaxGeneration } from "@/lib/sprite-utils";
 import { MoreHorizontal } from "lucide-react";
 
 interface VersionExclusivesProps {
@@ -27,6 +27,19 @@ interface GroupedExclusives {
   [game: string]: ExclusivePokemon[];
 }
 
+// Generation to max Pokemon ID mapping
+const GENERATION_MAX_ID: Record<number, number> = {
+  1: 151,
+  2: 251,
+  3: 386,
+  4: 493,
+  5: 649,
+  6: 721,
+  7: 809,
+  8: 905,
+  9: 1025,
+};
+
 export function VersionExclusives({ journeyId, journeyGames, caughtPokemonIds }: VersionExclusivesProps) {
   const [exclusives, setExclusives] = useState<ExclusivePokemon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,13 +56,27 @@ export function VersionExclusives({ journeyId, journeyGames, caughtPokemonIds }:
         setIsLoading(true);
         setError(null);
 
-        // For Gen 1, Pokemon IDs are 1-151
-        const allPokemon = Array.from({ length: 151 }, (_, i) => i + 1);
+        // Calculate max Pokemon ID based on journey games
+        const maxGeneration = getMaxGeneration(journeyGames);
+        const maxPokemonId = GENERATION_MAX_ID[maxGeneration] || 151;
+
+        // Get all Pokemon IDs for the generation
+        const allPokemon = Array.from({ length: maxPokemonId }, (_, i) => i + 1);
         
         // Filter out already caught Pokemon
         const uncaughtPokemon = allPokemon.filter(id => !caughtPokemonIds.has(id));
 
         const exclusivesList: ExclusivePokemon[] = [];
+
+        // Map game codes to PokeAPI version names
+        const gameVersionMap: Record<string, string> = {
+          red: "red",
+          blue: "blue",
+          yellow: "yellow",
+          gold: "gold",
+          silver: "silver",
+          crystal: "crystal"
+        };
 
         // Check each uncaught Pokemon
         for (const pokemonId of uncaughtPokemon) {
@@ -61,13 +88,6 @@ export function VersionExclusives({ journeyId, journeyGames, caughtPokemonIds }:
             // Fetch encounter data
             const encountersRes = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonId}/encounters`);
             const encountersData = await encountersRes.json();
-
-            // Map game codes to PokeAPI version names
-            const gameVersionMap: Record<string, string> = {
-              red: "red",
-              blue: "blue",
-              yellow: "yellow"
-            };
 
             // Check which of the user's games this Pokemon appears in
             const appearsInGames = new Set<string>();
@@ -165,6 +185,9 @@ export function VersionExclusives({ journeyId, journeyGames, caughtPokemonIds }:
       red: 'text-red-600',
       blue: 'text-blue-600',
       yellow: 'text-yellow-600',
+      gold: 'text-yellow-600',
+      silver: 'text-gray-400',
+      crystal: 'text-cyan-400',
     };
     return colorMap[game] || '';
   };
@@ -174,6 +197,9 @@ export function VersionExclusives({ journeyId, journeyGames, caughtPokemonIds }:
       red: 'Red',
       blue: 'Blue',
       yellow: 'Yellow',
+      gold: 'Gold',
+      silver: 'Silver',
+      crystal: 'Crystal',
     };
     return nameMap[game] || game;
   };
@@ -240,7 +266,6 @@ export function VersionExclusives({ journeyId, journeyGames, caughtPokemonIds }:
             </PopoverTrigger>
             <PopoverContent className="w-48">
               <div className="space-y-2">
-                <p className="text-sm font-semibold mb-2">More Games</p>
                 {overflowGames.map(game => (
                   <div key={game} className="flex items-center space-x-2">
                     <Checkbox
@@ -250,9 +275,9 @@ export function VersionExclusives({ journeyId, journeyGames, caughtPokemonIds }:
                     />
                     <label
                       htmlFor={`filter-${game}`}
-                      className={`text-sm font-medium cursor-pointer ${getGameColor(game)}`}
+                      className={`text-sm font-medium cursor-pointer capitalize ${getGameColor(game)}`}
                     >
-                      Pokémon {getGameName(game)}
+                      {getGameName(game)}
                     </label>
                   </div>
                 ))}
@@ -262,13 +287,14 @@ export function VersionExclusives({ journeyId, journeyGames, caughtPokemonIds }:
         )}
       </div>
 
+      {/* Table */}
       {filteredExclusives.length === 0 ? (
         <div className="border rounded-lg p-8 text-center text-muted-foreground">
-          <p>No exclusives found for the selected games.</p>
+          <p>No exclusives for the selected games</p>
         </div>
       ) : (
         <>
-          <div className="border rounded-lg overflow-hidden">
+          <div className="border rounded-lg">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -279,7 +305,7 @@ export function VersionExclusives({ journeyId, journeyGames, caughtPokemonIds }:
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currentItems.map((item: any, idx) => {
+                {currentItems.map((item: any) => {
                   if (item.type === 'header') {
                     return (
                       <TableRow key={`header-${item.game}`} className="bg-muted/50">
@@ -287,7 +313,9 @@ export function VersionExclusives({ journeyId, journeyGames, caughtPokemonIds }:
                           <span className={getGameColor(item.game)}>
                             Pokémon {getGameName(item.game)}
                           </span>
-                          {' '}({item.count})
+                          <span className="text-muted-foreground ml-2">
+                            ({item.count} exclusive{item.count !== 1 ? 's' : ''})
+                          </span>
                         </TableCell>
                       </TableRow>
                     );

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { PokemonCard } from "@/components/pokemon-card";
-import { getSpriteFromPokemonData } from "@/lib/sprite-utils";
+import { getSpriteFromPokemonData, getMaxGeneration } from "@/lib/sprite-utils";
 
 interface Pokemon {
   id: number;
@@ -24,6 +24,19 @@ interface PokedexGridProps {
 
 const POKEMON_PER_PAGE = 25;
 
+// Generation to max Pokemon ID mapping
+const GENERATION_MAX_ID: Record<number, number> = {
+  1: 151,
+  2: 251,
+  3: 386,
+  4: 493,
+  5: 649,
+  6: 721,
+  7: 809,
+  8: 905,
+  9: 1025,
+};
+
 export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames, targetedPokemonIds, onCatchToggle, onTargetToggle }: PokedexGridProps) {
   const [pokemon, setPokemon] = useState<Pokemon[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +44,10 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames, targete
   const [caught, setCaught] = useState(caughtPokemonIds);
   const [selectedPokemon, setSelectedPokemon] = useState<Pokemon | null>(null);
   const [targeted, setTargeted] = useState<Set<number>>(targetedPokemonIds);
+
+  // Calculate max Pokemon ID based on journey games
+  const maxGeneration = getMaxGeneration(journeyGames);
+  const maxPokemonId = GENERATION_MAX_ID[maxGeneration] || 151;
 
   // Sync local state with props when they change
   useEffect(() => {
@@ -41,7 +58,7 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames, targete
     setTargeted(targetedPokemonIds);
   }, [targetedPokemonIds]);
 
-  const totalPages = Math.ceil(151 / POKEMON_PER_PAGE);
+  const totalPages = Math.ceil(maxPokemonId / POKEMON_PER_PAGE);
   const startIndex = (currentPage - 1) * POKEMON_PER_PAGE;
   const endIndex = startIndex + POKEMON_PER_PAGE;
   const currentPokemon = pokemon.slice(startIndex, endIndex);
@@ -75,8 +92,9 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames, targete
 
   useEffect(() => {
     const fetchPokemon = async () => {
+      setLoading(true);
       try {
-        const promises = Array.from({ length: 151 }, (_, i) => {
+        const promises = Array.from({ length: maxPokemonId }, (_, i) => {
           const id = i + 1;
           return fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
             .then((res) => res.json())
@@ -97,7 +115,7 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames, targete
     };
 
     fetchPokemon();
-  }, [journeyGames]);
+  }, [journeyGames, maxPokemonId]);
 
   if (loading) {
     return (
@@ -109,6 +127,15 @@ export function PokedexGrid({ caughtPokemonIds, journeyId, journeyGames, targete
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-between items-center mb-2">
+        <p className="text-sm text-muted-foreground">
+          Generation {maxGeneration} • {maxPokemonId} Pokémon
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Caught: {caught.size}/{maxPokemonId}
+        </p>
+      </div>
+
       <div className="grid grid-cols-5 gap-1">
         {currentPokemon.map((p) => {
           const isCaught = caught.has(p.id);
