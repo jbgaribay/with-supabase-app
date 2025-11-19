@@ -85,6 +85,8 @@ export function PokemonCard({
   const [loading, setLoading] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [targeting, setTargeting] = useState(false);
+  const [showAllLocations, setShowAllLocations] = useState(false);
+
 
   useEffect(() => {
     if (isOpen && pokemonId) {
@@ -526,89 +528,127 @@ export function PokemonCard({
                 </div>
               )}
 
-              {/* Where to Find */}
-              <div>
-                <h3 className="text-sm font-semibold mb-3">Where to Find</h3>
-                {loading ? (
-                  <p className="text-sm text-muted-foreground">Loading locations...</p>
-                ) : (
-                  <div className="space-y-3">
-                    {/* Show top 2 locations + evolution (limited view) */}
-                    {locations.length === 0 && evolutionInfo && (
-                      <div className="border-2 border-primary rounded-lg p-3 space-y-1 bg-primary/5">
-                        <p className="font-semibold text-primary text-sm">Evolution Only</p>
-                        <p className="text-sm">
-                          Evolve from{" "}
-                          <span className="font-semibold capitalize">{evolutionInfo.fromPokemon}</span>
-                          {" "}#{evolutionInfo.fromPokemonId.toString().padStart(3, "0")}
-                        </p>
-                        <p className="text-sm font-medium">{evolutionInfo.method}</p>
-                      </div>
-                    )}
+<div>
+  <h3 className="text-sm font-semibold mb-3">Where to Find</h3>
+  {loading ? (
+    <p className="text-sm text-muted-foreground">Loading locations...</p>
+  ) : (
+    <div className="space-y-3">
+      {locations.length === 0 && evolutionInfo && (
+        <div className="border-2 border-primary rounded-lg p-3 space-y-1 bg-primary/5">
+          <p className="font-semibold text-primary text-sm">Evolution Only</p>
+          <p className="text-sm">
+            Evolve from{" "}
+            <span className="font-semibold capitalize">{evolutionInfo.fromPokemon}</span>
+            {" "}#{evolutionInfo.fromPokemonId.toString().padStart(3, "0")}
+          </p>
+          <p className="text-sm font-medium">{evolutionInfo.method}</p>
+        </div>
+      )}
 
-                    {locations.length === 0 && !evolutionInfo && (
-                      <p className="text-sm text-muted-foreground">
-                        Not available in your selected games.
-                      </p>
-                    )}
+      {locations.length === 0 && !evolutionInfo && (
+        <p className="text-sm text-muted-foreground">
+          Not available in your selected games.
+        </p>
+      )}
 
-                    {locations.length > 0 && (
-                      <>
-                        {/* Recommended */}
-                        <div>
-                          <p className="text-xs font-semibold text-primary mb-1">⭐ Recommended</p>
-                          <div className="border-2 border-primary rounded-lg p-2 bg-primary/5">
-                            <p className="font-medium text-sm">{locations[0].locationArea}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {locations[0].games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")} • {locations[0].methods.map(m => m.split("-").join(" ")).join(", ")}
-                            </p>
-                            <p className="text-xs font-semibold">
-                              Level {locations[0].minLevel === locations[0].maxLevel 
-                                ? locations[0].minLevel 
-                                : `${locations[0].minLevel}-${locations[0].maxLevel}`} • Rate: {locations[0].maxEncounterRate}%
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Second location */}
-                        {locations[1] && (
-                          <div className="border rounded-lg p-2">
-                            <p className="font-medium text-sm">{locations[1].locationArea}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {locations[1].games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")} • {locations[1].methods.map(m => m.split("-").join(" ")).join(", ")}
-                            </p>
-                            <p className="text-xs">
-                              Level {locations[1].minLevel === locations[1].maxLevel 
-                                ? locations[1].minLevel 
-                                : `${locations[1].minLevel}-${locations[1].maxLevel}`} • Rate: {locations[1].maxEncounterRate}%
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Evolution alternative */}
-                        {evolutionInfo && (
-                          <div className="border rounded-lg p-2 bg-muted/30">
-                            <p className="font-medium text-sm">Evolution Alternative</p>
-                            <p className="text-xs">
-                              Evolve from{" "}
-                              <span className="font-semibold capitalize">{evolutionInfo.fromPokemon}</span>
-                              {" "}#{evolutionInfo.fromPokemonId.toString().padStart(3, "0")}
-                            </p>
-                            <p className="text-xs font-medium">{evolutionInfo.method}</p>
-                          </div>
-                        )}
-
-                        {/* More locations indicator */}
-                        {locations.length > 2 && (
-                          <p className="text-xs text-muted-foreground italic">
-                            + {locations.length - 2} more location{locations.length - 2 > 1 ? "s" : ""}...
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
+      {locations.length > 0 && (
+        <>
+          {/* Scrollable container for all locations */}
+          <div className={`space-y-3 ${showAllLocations ? 'max-h-64 overflow-y-auto pr-2' : ''}`}>
+            {/* Recommended */}
+            <div>
+              <p className="text-xs font-semibold text-primary mb-1">⭐ Recommended</p>
+              <div className="border-2 border-primary rounded-lg p-2 bg-primary/5">
+                <p className="font-medium text-sm">{locations[0].locationArea}</p>
+                <p className="text-xs text-muted-foreground">
+                  {locations[0].games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")} • {locations[0].methods.map(m => m.split("-").join(" ")).join(", ")}
+                </p>
+                <p className="text-xs font-semibold">
+                  Level {locations[0].minLevel === locations[0].maxLevel 
+                    ? locations[0].minLevel 
+                    : `${locations[0].minLevel}-${locations[0].maxLevel}`} • Rate: {locations[0].maxEncounterRate}%
+                </p>
               </div>
+            </div>
+
+            {/* Show more locations based on showAllLocations state */}
+            {showAllLocations ? (
+              // Show all remaining locations
+              locations.slice(1).map((loc, idx) => (
+                <div key={idx} className="border rounded-lg p-2">
+                  <p className="font-medium text-sm">{loc.locationArea}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {loc.games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")} • {loc.methods.map(m => m.split("-").join(" ")).join(", ")}
+                  </p>
+                  <p className="text-xs">
+                    Level {loc.minLevel === loc.maxLevel 
+                      ? loc.minLevel 
+                      : `${loc.minLevel}-${loc.maxLevel}`} • Rate: {loc.maxEncounterRate}%
+                  </p>
+                </div>
+              ))
+            ) : (
+              // Show only second location
+              locations[1] && (
+                <div className="border rounded-lg p-2">
+                  <p className="font-medium text-sm">{locations[1].locationArea}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {locations[1].games.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(", ")} • {locations[1].methods.map(m => m.split("-").join(" ")).join(", ")}
+                  </p>
+                  <p className="text-xs">
+                    Level {locations[1].minLevel === locations[1].maxLevel 
+                      ? locations[1].minLevel 
+                      : `${locations[1].minLevel}-${locations[1].maxLevel}`} • Rate: {locations[1].maxEncounterRate}%
+                  </p>
+                </div>
+              )
+            )}
+
+            {/* Evolution alternative - only show when expanded */}
+            {showAllLocations && evolutionInfo && (
+              <div className="border rounded-lg p-2 bg-muted/30">
+                <p className="font-medium text-sm">Evolution Alternative</p>
+                <p className="text-xs">
+                  Evolve from{" "}
+                  <span className="font-semibold capitalize">{evolutionInfo.fromPokemon}</span>
+                  {" "}#{evolutionInfo.fromPokemonId.toString().padStart(3, "0")}
+                </p>
+                <p className="text-xs font-medium">{evolutionInfo.method}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Evolution alternative - show when not expanded */}
+          {!showAllLocations && evolutionInfo && (
+            <div className="border rounded-lg p-2 bg-muted/30">
+              <p className="font-medium text-sm">Evolution Alternative</p>
+              <p className="text-xs">
+                Evolve from{" "}
+                <span className="font-semibold capitalize">{evolutionInfo.fromPokemon}</span>
+                {" "}#{evolutionInfo.fromPokemonId.toString().padStart(3, "0")}
+              </p>
+              <p className="text-xs font-medium">{evolutionInfo.method}</p>
+            </div>
+          )}
+
+          {/* More locations toggle button */}
+          {locations.length > 2 && (
+            <button
+              onClick={() => setShowAllLocations(!showAllLocations)}
+              className="text-xs text-primary hover:underline cursor-pointer font-medium"
+            >
+              {showAllLocations 
+                ? "Show less" 
+                : `+ ${locations.length - 2} more location${locations.length - 2 > 1 ? "s" : ""}...`
+              }
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  )}
+</div>
             </div>
           </div>
 
