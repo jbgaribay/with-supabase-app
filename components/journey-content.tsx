@@ -106,17 +106,11 @@ export function JourneyContent({
                 onTargetToggle={handleTargetToggle}
               />
             </div>
-            <div className="w-64 space-y-4">
-              {/* Items Summary Card */}
-              <ItemsSummary
-                key={`items-summary-${refreshKey}`}
-                journeyId={journeyId}
-                journeyGames={currentGames}
-                caughtPokemonIds={caughtIds}
-              />
-              
+            
+            {/* Right sidebar with Targets and Items */}
+            <div className="w-80 space-y-4">
               {/* Targeted Pokemon List */}
-              <div className="h-[calc(100vh-400px)]">
+              <div className="h-[calc(50vh-100px)]">
                 <TargetedPokemonList
                   key={`targets-${refreshKey}`}
                   journeyId={journeyId}
@@ -127,6 +121,14 @@ export function JourneyContent({
                   onOpenPokemonCard={handleOpenPokemonCard}
                 />
               </div>
+
+              {/* Items Summary */}
+              <ItemsSummary
+                key={`items-summary-${refreshKey}`}
+                journeyId={journeyId}
+                journeyGames={currentGames}
+                caughtPokemonIds={caughtIds}
+              />
             </div>
           </div>
         </section>
