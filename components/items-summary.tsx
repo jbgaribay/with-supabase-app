@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMaxGeneration } from "@/lib/sprite-utils";
-import { Sparkles } from "lucide-react";
 import Image from "next/image";
 import {
   Dialog,
@@ -152,102 +150,81 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            Evolution Items Needed
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </CardContent>
-      </Card>
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Evolution Items Needed</h3>
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
     );
   }
 
   if (items.length === 0) {
     return (
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            Evolution Items Needed
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">None needed! 🎉</p>
-        </CardContent>
-      </Card>
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Evolution Items Needed</h3>
+        <p className="text-sm text-muted-foreground">None needed! 🎉</p>
+      </div>
     );
   }
 
   return (
     <>
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            Evolution Items Needed
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
-            {items.map((item) => (
-              <div
-                key={item.itemName}
-                className="border rounded-lg p-3 cursor-pointer hover:bg-accent transition-colors"
-                onClick={() => setSelectedItem(item)}
-              >
-                <div className="flex items-start gap-3">
-                  {/* Item sprite */}
-                  <Image
-                    src={item.itemSprite}
-                    alt={item.itemName}
-                    width={32}
-                    height={32}
-                    className="pixelated flex-shrink-0"
-                    unoptimized
-                  />
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Evolution Items Needed</h3>
+        <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+          {items.map((item) => (
+            <div
+              key={item.itemName}
+              className="border rounded-lg p-3 cursor-pointer hover:bg-accent transition-colors"
+              onClick={() => setSelectedItem(item)}
+            >
+              <div className="flex items-start gap-3">
+                {/* Item sprite */}
+                <Image
+                  src={item.itemSprite}
+                  alt={item.itemName}
+                  width={32}
+                  height={32}
+                  className="pixelated flex-shrink-0"
+                  unoptimized
+                />
+                
+                <div className="flex-1 min-w-0">
+                  {/* Item name and count */}
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="font-semibold text-sm">{item.itemName}</p>
+                    <span className="text-sm text-muted-foreground">×{item.count}</span>
+                  </div>
                   
-                  <div className="flex-1 min-w-0">
-                    {/* Item name and count */}
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="font-semibold text-sm">{item.itemName}</p>
-                      <span className="text-sm text-muted-foreground">×{item.count}</span>
-                    </div>
-                    
-                    {/* Location */}
-                    <p className="text-xs text-muted-foreground mb-2">
-                      {item.topLocation}
-                    </p>
-                    
-                    {/* Pokemon sprites */}
-                    <div className="flex gap-1 flex-wrap">
-                      {item.pokemon.slice(0, 5).map((pokemon) => (
-                        <Image
-                          key={pokemon.id}
-                          src={pokemon.sprite}
-                          alt={pokemon.name}
-                          width={24}
-                          height={24}
-                          className="pixelated"
-                          unoptimized
-                        />
-                      ))}
-                      {item.pokemon.length > 5 && (
-                        <span className="text-xs text-muted-foreground self-center">
-                          +{item.pokemon.length - 5}
-                        </span>
-                      )}
-                    </div>
+                  {/* Location */}
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {item.topLocation}
+                  </p>
+                  
+                  {/* Pokemon sprites */}
+                  <div className="flex gap-1 flex-wrap">
+                    {item.pokemon.slice(0, 5).map((pokemon) => (
+                      <Image
+                        key={pokemon.id}
+                        src={pokemon.sprite}
+                        alt={pokemon.name}
+                        width={24}
+                        height={24}
+                        className="pixelated"
+                        unoptimized
+                      />
+                    ))}
+                    {item.pokemon.length > 5 && (
+                      <span className="text-xs text-muted-foreground self-center">
+                        +{item.pokemon.length - 5}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Item Details Modal */}
       {selectedItem && (
