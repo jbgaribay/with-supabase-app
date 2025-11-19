@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { createClient } from "@/lib/supabase/client";
 
 interface SettingsProps {
@@ -100,57 +101,67 @@ export function Settings({ journeyId, currentGames, onGamesUpdate }: SettingsPro
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Generation 1 */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold">Generation 1</h3>
-            <div className="space-y-2">
-              {gen1Games.map((game) => (
-                <div
-                  key={game.code}
-                  className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent cursor-pointer"
-                  onClick={() => toggleGame(game.code)}
-                >
-                  <Checkbox
-                    id={game.code}
-                    checked={selectedGames.includes(game.code)}
-                    onCheckedChange={() => toggleGame(game.code)}
-                  />
-                  <label
-                    htmlFor={game.code}
-                    className={`text-lg font-semibold cursor-pointer ${game.color}`}
-                  >
-                    {game.name}
-                  </label>
+          <Accordion type="single" collapsible className="w-full">
+            {/* Generation 1 */}
+            <AccordionItem value="gen1">
+              <AccordionTrigger className="text-sm font-semibold">
+                Generation 1 ({gen1Games.filter(g => selectedGames.includes(g.code)).length}/{gen1Games.length} selected)
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2 pt-2">
+                  {gen1Games.map((game) => (
+                    <div
+                      key={game.code}
+                      className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent cursor-pointer"
+                      onClick={() => toggleGame(game.code)}
+                    >
+                      <Checkbox
+                        id={game.code}
+                        checked={selectedGames.includes(game.code)}
+                        onCheckedChange={() => toggleGame(game.code)}
+                      />
+                      <label
+                        htmlFor={game.code}
+                        className={`text-lg font-semibold cursor-pointer ${game.color}`}
+                      >
+                        {game.name}
+                      </label>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              </AccordionContent>
+            </AccordionItem>
 
-          {/* Generation 2 */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold">Generation 2</h3>
-            <div className="space-y-2">
-              {gen2Games.map((game) => (
-                <div
-                  key={game.code}
-                  className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent cursor-pointer"
-                  onClick={() => toggleGame(game.code)}
-                >
-                  <Checkbox
-                    id={game.code}
-                    checked={selectedGames.includes(game.code)}
-                    onCheckedChange={() => toggleGame(game.code)}
-                  />
-                  <label
-                    htmlFor={game.code}
-                    className={`text-lg font-semibold cursor-pointer ${game.color}`}
-                  >
-                    {game.name}
-                  </label>
+            {/* Generation 2 */}
+            <AccordionItem value="gen2">
+              <AccordionTrigger className="text-sm font-semibold">
+                Generation 2 ({gen2Games.filter(g => selectedGames.includes(g.code)).length}/{gen2Games.length} selected)
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2 pt-2">
+                  {gen2Games.map((game) => (
+                    <div
+                      key={game.code}
+                      className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent cursor-pointer"
+                      onClick={() => toggleGame(game.code)}
+                    >
+                      <Checkbox
+                        id={game.code}
+                        checked={selectedGames.includes(game.code)}
+                        onCheckedChange={() => toggleGame(game.code)}
+                      />
+                      <label
+                        htmlFor={game.code}
+                        className={`text-lg font-semibold cursor-pointer ${game.color}`}
+                      >
+                        {game.name}
+                      </label>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           {/* Messages */}
           {error && <p className="text-sm text-red-500">{error}</p>}
