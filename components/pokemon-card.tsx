@@ -278,8 +278,12 @@ export function PokemonCard({
               if (detail.min_level) {
                 method = `Lv${detail.min_level}`;
               } else if (detail.item) {
-                const itemName = detail.item.name.split("-").pop();
-                method = itemName?.charAt(0).toUpperCase() + (itemName?.slice(1) || "");
+                // Get the full item name and format it properly
+                const itemName = detail.item.name
+                  .split("-")
+                  .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(" ");
+                method = itemName;
               } else if (detail.trigger.name === "trade") {
                 method = detail.held_item ? "Trade+Item" : "Trade";
               }

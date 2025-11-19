@@ -7,6 +7,8 @@ import { JourneyNav } from "@/components/journey-nav";
 import { PokemonCard } from "@/components/pokemon-card";
 import { VersionExclusives } from "@/components/version-exclusives";
 import { Settings } from "@/components/settings";
+import { NeededItems } from "@/components/needed-items";
+import { ItemsSummary } from "@/components/items-summary";
 
 interface JourneyContentProps {
   journeyId: string;
@@ -18,6 +20,7 @@ interface JourneyContentProps {
 const SECTIONS = [
   { id: "home", label: "Home" },
   { id: "version-exclusives", label: "Version Exclusives" },
+  { id: "needed-items", label: "Needed Items" },
   { id: "settings", label: "Settings" },
 ];
 
@@ -39,7 +42,6 @@ export function JourneyContent({
 
   const handleGamesUpdate = (newGames: string[]) => {
     setCurrentGames(newGames);
-    // Force re-render of all components that depend on games
     setRefreshKey(prev => prev + 1);
   };
 
@@ -53,6 +55,8 @@ export function JourneyContent({
       }
       return newSet;
     });
+    // Force items summary to refresh when Pokemon are caught
+    setRefreshKey(prev => prev + 1);
   };
 
   const handleTargetToggle = (pokemonId: number, isNowTargeted: boolean) => {
@@ -66,7 +70,6 @@ export function JourneyContent({
       return newSet;
     });
     
-    // Force targets list to refetch
     if (isNowTargeted) {
       setRefreshKey(prev => prev + 1);
     }
@@ -103,16 +106,27 @@ export function JourneyContent({
                 onTargetToggle={handleTargetToggle}
               />
             </div>
-            <div className="h-[calc(100vh-200px)]">
-              <TargetedPokemonList
-                key={`targets-${refreshKey}`}
+            <div className="w-64 space-y-4">
+              {/* Items Summary Card */}
+              <ItemsSummary
+                key={`items-summary-${refreshKey}`}
                 journeyId={journeyId}
                 journeyGames={currentGames}
                 caughtPokemonIds={caughtIds}
-                onCatchToggle={handleCatchToggle}
-                onTargetRemove={(pokemonId) => handleTargetToggle(pokemonId, false)}
-                onOpenPokemonCard={handleOpenPokemonCard}
               />
+              
+              {/* Targeted Pokemon List */}
+              <div className="h-[calc(100vh-400px)]">
+                <TargetedPokemonList
+                  key={`targets-${refreshKey}`}
+                  journeyId={journeyId}
+                  journeyGames={currentGames}
+                  caughtPokemonIds={caughtIds}
+                  onCatchToggle={handleCatchToggle}
+                  onTargetRemove={(pokemonId) => handleTargetToggle(pokemonId, false)}
+                  onOpenPokemonCard={handleOpenPokemonCard}
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -122,6 +136,17 @@ export function JourneyContent({
           <h2 className="text-2xl font-bold mb-4">Version Exclusives</h2>
           <VersionExclusives 
             key={`exclusives-${refreshKey}`}
+            journeyId={journeyId}
+            journeyGames={currentGames}
+            caughtPokemonIds={caughtIds}
+          />
+        </section>
+
+        {/* Needed Items Section */}
+        <section id="needed-items" className="scroll-mt-20">
+          <h2 className="text-2xl font-bold mb-4">Needed Items</h2>
+          <NeededItems
+            key={`items-${refreshKey}`}
             journeyId={journeyId}
             journeyGames={currentGames}
             caughtPokemonIds={caughtIds}
