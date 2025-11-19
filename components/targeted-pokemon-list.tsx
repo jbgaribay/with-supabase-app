@@ -348,7 +348,7 @@ export function TargetedPokemonList({ journeyId, journeyGames, caughtPokemonIds 
   }
 
   return (
-    <div className="w-80 border-l pl-4 flex flex-col h-full">
+    <div className="flex flex-col h-full">
       {/* Progress Bar */}
       <div className="mb-4 flex-shrink-0">
         <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">

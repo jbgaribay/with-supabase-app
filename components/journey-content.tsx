@@ -94,7 +94,7 @@ export function JourneyContent({
       <div className="flex-1 space-y-12">
         {/* Home Section */}
         <section id="home" className="scroll-mt-20">
-          <div className="flex gap-4">
+          <div className="flex">
             <div className="flex-1">
               <PokedexGrid
                 key={`pokedex-${refreshKey}`}
@@ -107,8 +107,8 @@ export function JourneyContent({
               />
             </div>
             
-            {/* Right sidebar with Targets and Items */}
-            <div className="w-80 space-y-4">
+            {/* Right sidebar with Targets and Items - unified border */}
+            <div className="w-80 ml-4 border-l pl-4 space-y-6">
               {/* Targeted Pokemon List */}
               <div className="h-[calc(50vh-100px)]">
                 <TargetedPokemonList
