@@ -16,6 +16,7 @@ interface ItemsSummaryProps {
   journeyId: string;
   journeyGames: string[];
   caughtPokemonIds: Set<number>;
+  onOpenPokemonCard?: (pokemonId: number, pokemonName: string, sprite: string) => void;
 }
 
 interface PokemonNeedingItem {
@@ -40,11 +41,11 @@ const GENERATION_MAX_ID: Record<number, number> = {
   2: 251,
 };
 
-export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: ItemsSummaryProps) {
+export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds, onOpenPokemonCard }: ItemsSummaryProps) {
   const [items, setItems] = useState<ItemInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<ItemInfo | null>(null);
-  const [showOnlyCaught, setShowOnlyCaught] = useState(true); // Toggle state
+  const [showOnlyCaught, setShowOnlyCaught] = useState(true);
 
   useEffect(() => {
     async function fetchItemsSummary() {
@@ -81,12 +82,10 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
                       const preEvoCaught = caughtPokemonIds.has(currentPokemonId);
                       const evolutionCaught = caughtPokemonIds.has(evolvesIntoId);
                       
-                      // Always skip if evolution is already caught
                       if (evolutionCaught) {
                         return;
                       }
                       
-                      // If toggle is ON (showOnlyCaught), only show items for caught pre-evos
                       if (showOnlyCaught && !preEvoCaught) {
                         return;
                       }
@@ -159,7 +158,14 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
     }
 
     fetchItemsSummary();
-  }, [journeyGames, caughtPokemonIds, showOnlyCaught]); // Re-fetch when toggle changes
+  }, [journeyGames, caughtPokemonIds, showOnlyCaught]);
+
+  const handlePokemonClick = (pokemon: PokemonNeedingItem) => {
+    if (onOpenPokemonCard) {
+      onOpenPokemonCard(pokemon.id, pokemon.name, pokemon.sprite);
+      setSelectedItem(null); // Close the items modal
+    }
+  };
 
   if (isLoading) {
     return (
@@ -176,7 +182,6 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold">Evolution Items Needed</h3>
           
-          {/* Toggle Switch */}
           <div className="flex items-center gap-2">
             <Switch
               id="show-only-caught"
@@ -200,7 +205,6 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
                 onClick={() => setSelectedItem(item)}
               >
                 <div className="flex items-start gap-3">
-                  {/* Item sprite */}
                   <Image
                     src={item.itemSprite}
                     alt={item.itemName}
@@ -211,18 +215,15 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
                   />
                   
                   <div className="flex-1 min-w-0">
-                    {/* Item name and count */}
                     <div className="flex items-center justify-between mb-1">
                       <p className="font-semibold text-sm">{item.itemName}</p>
                       <span className="text-sm text-muted-foreground">×{item.count}</span>
                     </div>
                     
-                    {/* Location */}
                     <p className="text-xs text-muted-foreground mb-2">
                       {item.topLocation}
                     </p>
                     
-                    {/* Pokemon sprites */}
                     <div className="flex gap-1 flex-wrap">
                       {item.pokemon.slice(0, 5).map((pokemon) => (
                         <Image
@@ -280,7 +281,7 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
                 </div>
               </div>
 
-              {/* Pokemon that need this item */}
+              {/* Pokemon that need this item - NOW CLICKABLE */}
               <div>
                 <h3 className="text-sm font-semibold mb-2">
                   Needed for {selectedItem.count} Pokémon:
@@ -289,7 +290,8 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
                   {selectedItem.pokemon.map((pokemon) => (
                     <div
                       key={pokemon.id}
-                      className="border rounded-lg p-3 flex items-center gap-3"
+                      className="border rounded-lg p-3 flex items-center gap-3 cursor-pointer hover:bg-accent transition-colors"
+                      onClick={() => handlePokemonClick(pokemon)}
                     >
                       <Image
                         src={pokemon.sprite}

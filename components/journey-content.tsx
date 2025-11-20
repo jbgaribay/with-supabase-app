@@ -128,6 +128,7 @@ export function JourneyContent({
                 journeyId={journeyId}
                 journeyGames={currentGames}
                 caughtPokemonIds={caughtIds}
+                onOpenPokemonCard={handleOpenPokemonCard}
               />
             </div>
           </div>
