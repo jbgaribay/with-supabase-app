@@ -395,7 +395,13 @@ export function VersionExclusives({ journeyId, journeyGames, caughtPokemonIds }:
           isTargeted={false}
           onTargetToggle={() => {}} // Read-only for now
           onEvolutionClick={(id, name, sprite) => {
-            setSelectedPokemon({ id, name, sprite });
+            const pokemon = exclusives.find(p => p.id === id);
+            if (pokemon) {
+              setSelectedPokemon(pokemon);
+            } else {
+              // If evolution Pokemon isn't in the exclusives list, close the modal
+              setSelectedPokemon(null);
+            }
           }}
         />
       )}
