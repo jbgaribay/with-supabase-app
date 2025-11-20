@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { getMaxGeneration } from "@/lib/sprite-utils";
 import Image from "next/image";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +44,7 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
   const [items, setItems] = useState<ItemInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<ItemInfo | null>(null);
+  const [showOnlyCaught, setShowOnlyCaught] = useState(true); // Toggle state
 
   useEffect(() => {
     async function fetchItemsSummary() {
@@ -52,11 +55,10 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
         const maxPokemonId = GENERATION_MAX_ID[maxGeneration] || 151;
 
         const allPokemon = Array.from({ length: maxPokemonId }, (_, i) => i + 1);
-        const uncaughtPokemon = allPokemon.filter(id => !caughtPokemonIds.has(id));
 
         const itemsMap: Record<string, ItemInfo> = {};
 
-        for (const pokemonId of uncaughtPokemon) {
+        for (const pokemonId of allPokemon) {
           try {
             const speciesRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemonId}`);
             const speciesData = await speciesRes.json();
@@ -64,17 +66,31 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
             const evolutionRes = await fetch(speciesData.evolution_chain.url);
             const evolutionData = await evolutionRes.json();
 
-            // Fetch Pokemon data for sprite
             const pokemonRes = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonId}`);
             const pokemonData = await pokemonRes.json();
 
-            const checkEvolutionChain = (chain: any, currentPokemon: string) => {
+            const checkEvolutionChain = (chain: any, currentPokemon: string, currentPokemonId: number) => {
               if (chain.evolves_to) {
                 for (const evolution of chain.evolves_to) {
                   if (chain.species.name === currentPokemon) {
                     const detail = evolution.evolution_details[0];
                     
                     if (detail.item) {
+                      const evolvesIntoId = parseInt(evolution.species.url.split("/").slice(-2, -1)[0]);
+                      
+                      const preEvoCaught = caughtPokemonIds.has(currentPokemonId);
+                      const evolutionCaught = caughtPokemonIds.has(evolvesIntoId);
+                      
+                      // Always skip if evolution is already caught
+                      if (evolutionCaught) {
+                        return;
+                      }
+                      
+                      // If toggle is ON (showOnlyCaught), only show items for caught pre-evos
+                      if (showOnlyCaught && !preEvoCaught) {
+                        return;
+                      }
+
                       const itemSlug = detail.item.name;
                       const itemName = itemSlug
                         .split("-")
@@ -92,15 +108,12 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
                           pokemon: [],
                         };
                       }
-
-                      const evolvesIntoId = parseInt(evolution.species.url.split("/").slice(-2, -1)[0]);
                       
-                      // Get sprite for the current Pokemon
                       const sprite = pokemonData.sprites.versions?.["generation-i"]?.["red-blue"]?.front_transparent 
                         || pokemonData.sprites.front_default;
 
                       itemsMap[itemName].pokemon.push({
-                        id: pokemonId,
+                        id: currentPokemonId,
                         name: currentPokemon,
                         sprite,
                         evolvesInto: evolution.species.name,
@@ -110,14 +123,14 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
                       itemsMap[itemName].count = itemsMap[itemName].pokemon.length;
                     }
                   }
-                  checkEvolutionChain(evolution, currentPokemon);
+                  checkEvolutionChain(evolution, currentPokemon, currentPokemonId);
                 }
               }
             };
 
             const findPokemonInChain = (chain: any): boolean => {
               if (chain.species.name === speciesData.name) {
-                checkEvolutionChain(chain, speciesData.name);
+                checkEvolutionChain(chain, speciesData.name, pokemonId);
                 return true;
               }
               if (chain.evolves_to) {
@@ -146,7 +159,7 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
     }
 
     fetchItemsSummary();
-  }, [journeyGames, caughtPokemonIds]);
+  }, [journeyGames, caughtPokemonIds, showOnlyCaught]); // Re-fetch when toggle changes
 
   if (isLoading) {
     return (
@@ -157,73 +170,83 @@ export function ItemsSummary({ journeyId, journeyGames, caughtPokemonIds }: Item
     );
   }
 
-  if (items.length === 0) {
-    return (
-      <div>
-        <h3 className="text-sm font-semibold mb-3">Evolution Items Needed</h3>
-        <p className="text-sm text-muted-foreground">None needed! 🎉</p>
-      </div>
-    );
-  }
-
   return (
     <>
       <div>
-        <h3 className="text-sm font-semibold mb-3">Evolution Items Needed</h3>
-        <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
-          {items.map((item) => (
-            <div
-              key={item.itemName}
-              className="border rounded-lg p-3 cursor-pointer hover:bg-accent transition-colors"
-              onClick={() => setSelectedItem(item)}
-            >
-              <div className="flex items-start gap-3">
-                {/* Item sprite */}
-                <Image
-                  src={item.itemSprite}
-                  alt={item.itemName}
-                  width={32}
-                  height={32}
-                  className="pixelated flex-shrink-0"
-                  unoptimized
-                />
-                
-                <div className="flex-1 min-w-0">
-                  {/* Item name and count */}
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="font-semibold text-sm">{item.itemName}</p>
-                    <span className="text-sm text-muted-foreground">×{item.count}</span>
-                  </div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold">Evolution Items Needed</h3>
+          
+          {/* Toggle Switch */}
+          <div className="flex items-center gap-2">
+            <Switch
+              id="show-only-caught"
+              checked={showOnlyCaught}
+              onCheckedChange={setShowOnlyCaught}
+            />
+            <Label htmlFor="show-only-caught" className="text-xs cursor-pointer">
+              Caught only
+            </Label>
+          </div>
+        </div>
+
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">None needed! 🎉</p>
+        ) : (
+          <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+            {items.map((item) => (
+              <div
+                key={item.itemName}
+                className="border rounded-lg p-3 cursor-pointer hover:bg-accent transition-colors"
+                onClick={() => setSelectedItem(item)}
+              >
+                <div className="flex items-start gap-3">
+                  {/* Item sprite */}
+                  <Image
+                    src={item.itemSprite}
+                    alt={item.itemName}
+                    width={32}
+                    height={32}
+                    className="pixelated flex-shrink-0"
+                    unoptimized
+                  />
                   
-                  {/* Location */}
-                  <p className="text-xs text-muted-foreground mb-2">
-                    {item.topLocation}
-                  </p>
-                  
-                  {/* Pokemon sprites */}
-                  <div className="flex gap-1 flex-wrap">
-                    {item.pokemon.slice(0, 5).map((pokemon) => (
-                      <Image
-                        key={pokemon.id}
-                        src={pokemon.sprite}
-                        alt={pokemon.name}
-                        width={24}
-                        height={24}
-                        className="pixelated"
-                        unoptimized
-                      />
-                    ))}
-                    {item.pokemon.length > 5 && (
-                      <span className="text-xs text-muted-foreground self-center">
-                        +{item.pokemon.length - 5}
-                      </span>
-                    )}
+                  <div className="flex-1 min-w-0">
+                    {/* Item name and count */}
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-semibold text-sm">{item.itemName}</p>
+                      <span className="text-sm text-muted-foreground">×{item.count}</span>
+                    </div>
+                    
+                    {/* Location */}
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {item.topLocation}
+                    </p>
+                    
+                    {/* Pokemon sprites */}
+                    <div className="flex gap-1 flex-wrap">
+                      {item.pokemon.slice(0, 5).map((pokemon) => (
+                        <Image
+                          key={pokemon.id}
+                          src={pokemon.sprite}
+                          alt={pokemon.name}
+                          width={24}
+                          height={24}
+                          className="pixelated"
+                          unoptimized
+                        />
+                      ))}
+                      {item.pokemon.length > 5 && (
+                        <span className="text-xs text-muted-foreground self-center">
+                          +{item.pokemon.length - 5}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Item Details Modal */}
