@@ -145,8 +145,8 @@ export function PokemonCard({
             }))
           );
 
-          const minLevel = Math.min(...allLevels.map((l) => l.min));
-          const maxLevel = Math.max(...allLevels.map((l) => l.max));
+          const minLevel = Math.min(...allLevels.map((l: { min: number; max: number }) => l.min));
+          const maxLevel = Math.max(...allLevels.map((l: { min: number; max: number }) => l.max));
 
           filteredLocations.push({
             locationArea: locationName,
