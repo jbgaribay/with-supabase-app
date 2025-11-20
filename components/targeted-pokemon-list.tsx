@@ -119,11 +119,11 @@ export function TargetedPokemonList({ journeyId, journeyGames, caughtPokemonIds 
                     vd.encounter_details.map((ed: any) => ed.method.name)
                   )
                 ),
-              ];
-
+              ] as string[];
+              
               const games = [
                 ...new Set(relevantVersions.map((vd: any) => vd.version.name)),
-              ];
+              ] as string[];
 
               const maxEncounterRate = Math.max(
                 ...relevantVersions.flatMap((vd: any) =>

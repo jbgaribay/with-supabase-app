@@ -124,11 +124,11 @@ export function PokemonCard({
                 vd.encounter_details.map((ed: any) => ed.method.name)
               )
             ),
-          ];
-
+          ] as string[];
+          
           const games = [
             ...new Set(relevantVersions.map((vd: any) => vd.version.name)),
-          ];
+          ] as string[];
 
           // Calculate max encounter rate across all versions and methods for this location
           const maxEncounterRate = Math.max(
