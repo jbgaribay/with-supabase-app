@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import localFont from 'next/font/local';
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 
@@ -18,7 +19,11 @@ const geistSans = Geist({
   display: "swap",
   subsets: ["latin"],
 });
-
+const coolFont = localFont({
+  src: '../public/fonts/coolfont.woff2',
+  variable: '--font-cool',
+  display: 'swap',
+});
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -26,7 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.className} antialiased`}>
+<body className={`${coolFont.className} antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
