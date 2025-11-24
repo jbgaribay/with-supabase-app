@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 
 interface BreedingOpportunitiesProps {
   journeyGames: string[];
@@ -19,6 +20,8 @@ interface BreedingOpportunity {
   eggGroup: string;
 }
 
+const ITEMS_PER_PAGE = 10;
+
 export function BreedingOpportunities({
   journeyGames,
   caughtPokemonIds,
@@ -26,6 +29,7 @@ export function BreedingOpportunities({
   const [opportunities, setOpportunities] = useState<BreedingOpportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     async function fetchBreedingData() {
@@ -141,14 +145,27 @@ export function BreedingOpportunities({
     );
   }
 
+  // Pagination logic
+  const totalPages = Math.ceil(opportunities.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const currentOpportunities = opportunities.slice(startIndex, endIndex);
+
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Found {opportunities.length} Pokémon you can obtain through breeding
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          Found {opportunities.length} Pokémon you can obtain through breeding
+        </p>
+        {totalPages > 1 && (
+          <p className="text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </p>
+        )}
+      </div>
       
       <div className="space-y-3">
-        {opportunities.map((opp) => (
+        {currentOpportunities.map((opp) => (
           <div
             key={opp.babyId}
             className="border rounded-lg p-4 flex items-center gap-4 hover:bg-accent/50 transition-colors"
@@ -184,6 +201,31 @@ export function BreedingOpportunities({
           </div>
         ))}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            {currentPage} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
