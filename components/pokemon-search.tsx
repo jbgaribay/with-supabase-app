@@ -516,7 +516,12 @@ Examples:
           const evolutionRes = await fetch(species.evolution_chain.url);
           const evolutionData = await evolutionRes.json();
 
-          const evolutionChain = [];
+          const evolutionChain: Array<{
+            name: string;
+            id: number;
+            sprite: string;
+            evolutionMethod?: string;
+          }> = [];
 
           const buildChain = async (chainLink: any, previousMethod?: string) => {
             const id = parseInt(chainLink.species.url.split("/").slice(-2, -1)[0]);
