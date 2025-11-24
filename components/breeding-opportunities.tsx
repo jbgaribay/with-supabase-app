@@ -87,7 +87,7 @@ export function BreedingOpportunities({
             // Check if any caught Pokemon can breed to produce this one
             // For basic breeding: need same egg group
             const compatibleParents = validCaughtPokemon.filter(parent => 
-              parent.eggGroups.some(eg => eggGroups.includes(eg))
+              parent.eggGroups.some((eg: string) => eggGroups.includes(eg))
             );
 
             if (compatibleParents.length > 0) {
