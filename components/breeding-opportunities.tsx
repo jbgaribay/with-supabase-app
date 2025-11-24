@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { getSpriteFromPokemonData } from "@/lib/sprite-utils";
 
 interface BreedingOpportunitiesProps {
   journeyGames: string[];
@@ -96,7 +97,7 @@ export function BreedingOpportunities({
               opportunities.push({
                 babyId: pokemonId,
                 babyName: pokemonData.name,
-                babySprite: pokemonData.sprites.front_default,
+                babySprite: getSpriteFromPokemonData(pokemonData, journeyGames),
                 parent1Id: parent.id,
                 parent1Name: parent.name,
                 parent2Options: `Any Pokémon in ${eggGroups[0]} egg group`,
