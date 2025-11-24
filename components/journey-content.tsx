@@ -9,7 +9,7 @@ import { VersionExclusives } from "@/components/version-exclusives";
 import { Settings } from "@/components/settings";
 import { NeededItems } from "@/components/needed-items";
 import { ItemsSummary } from "@/components/items-summary";
-
+import { BreedingOpportunities } from "@/components/breeding-opportunities";
 interface JourneyContentProps {
   journeyId: string;
   journeyGames: string[];
@@ -21,6 +21,7 @@ const SECTIONS = [
   { id: "home", label: "Home" },
   { id: "version-exclusives", label: "Version Exclusives" },
   { id: "needed-items", label: "Needed Items" },
+  { id: "breeding", label: "Breeding" },
   { id: "settings", label: "Settings" },
 ];
 
@@ -133,6 +134,7 @@ export function JourneyContent({
             </div>
           </div>
         </section>
+        
 
         {/* Version Exclusives Section */}
         <section id="version-exclusives" className="scroll-mt-20">
@@ -155,7 +157,14 @@ export function JourneyContent({
             caughtPokemonIds={caughtIds}
           />
         </section>
-
+                {/* Breeding Section */}
+                <section id="breeding" className="scroll-mt-20">
+          <h2 className="text-2xl font-bold mb-4">Breeding</h2>
+          <BreedingOpportunities 
+            journeyGames={journeyGames}
+            caughtPokemonIds={caughtIds}
+          />
+        </section>
         {/* Settings Section */}
         <section id="settings" className="scroll-mt-20">
           <h2 className="text-2xl font-bold mb-4">Settings</h2>
