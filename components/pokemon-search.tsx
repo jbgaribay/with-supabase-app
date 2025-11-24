@@ -463,8 +463,8 @@ Examples:
                 max: ed.max_level,
               }));
 
-              const minLevel = Math.min(...levels.map((l) => l.min));
-              const maxLevel = Math.max(...levels.map((l) => l.max));
+              const minLevel = Math.min(...levels.map((l: { min: number; max: number }) => l.min));
+              const maxLevel = Math.max(...levels.map((l: { min: number; max: number }) => l.max));
               const levelRange = minLevel === maxLevel ? `Lv. ${minLevel}` : `Lv. ${minLevel}-${maxLevel}`;
 
               const key = `${locationName}-${levelRange}`;
