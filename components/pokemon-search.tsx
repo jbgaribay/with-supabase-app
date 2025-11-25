@@ -405,7 +405,6 @@ Examples:
           });
         }
       } else if (parsed.command === 'locations' || parsed.command === 'location') {
-      } else if (parsed.command === 'locations' || parsed.command === 'location') {
         try {
           const pokemonRes = await fetch(`https://pokeapi.co/api/v2/pokemon/${currentPokemon.id}`);
           const pokemon = await pokemonRes.json();
