@@ -38,7 +38,7 @@ const GAME_TO_VERSION_GROUP: Record<string, string> = {
 
 interface Message {
   id: string;
-  type: 'user' | 'system' | 'pokemon' | 'moves' | 'locations' | 'evolution' | 'breeding' | 'effectiveness' | 'error';
+  type: 'user' | 'system' | 'pokemon' | 'moves' | 'locations' | 'tm_location' | 'evolution' | 'breeding' | 'effectiveness' | 'error';
   content: any;
   timestamp: Date;
 }
@@ -277,6 +277,7 @@ After searching a Pokémon:
 • location [game] - Show locations for specific game
 • location best - Show only the best location
 • location walk/surf/fish - Filter by method
+• [move name] location - Find TM location (e.g., thunderbolt location gen 3)
 • evo - Show evolution chain
 • breeding - Show breeding info
 • type - Show type effectiveness
@@ -654,6 +655,121 @@ Examples:
         });
       }
 
+      setIsLoading(false);
+      return;
+    }
+
+    // Check if this is a TM location query (e.g., "thunderbolt location gen 3")
+    if (cmdLower.includes(' location')) {
+      const parts = cmdLower.split(' location');
+      const moveName = parts[0].trim().replace(/\s+/g, '-');
+      const locationQuery = parts[1] ? parts[1].trim() : '';
+      
+      // Parse generation/game from the location query
+      const locationParsed = parseCommand('location ' + locationQuery);
+      
+      try {
+        setIsLoading(true);
+        
+        // Fetch move data
+        const moveRes = await fetch(`https://pokeapi.co/api/v2/move/${moveName}`);
+        if (!moveRes.ok) {
+          addMessage({
+            type: 'error',
+            content: `Move "${moveName.replace(/-/g, ' ')}" not found.`,
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        const moveData = await moveRes.json();
+        const moveMachines = moveData.machines || [];
+        
+        if (moveMachines.length === 0) {
+          addMessage({
+            type: 'error',
+            content: `"${moveData.name.replace(/-/g, ' ')}" is not a TM/HM move.`,
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        // Filter by version group if specified
+        let filteredMachines = moveMachines;
+        if (locationParsed.versionGroups) {
+          filteredMachines = moveMachines.filter((machine: any) => {
+            const vgName = machine.version_group.name;
+            return locationParsed.versionGroups!.includes(vgName);
+          });
+        }
+        
+        if (filteredMachines.length === 0) {
+          const displayName = locationParsed.game 
+            ? `in ${locationParsed.game}`
+            : locationParsed.generation
+            ? `in Gen ${locationParsed.generation}`
+            : '';
+          addMessage({
+            type: 'error',
+            content: `"${moveData.name.replace(/-/g, ' ')}" is not available as a TM/HM ${displayName}.`,
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        // Fetch machine details for each
+        const tmLocations = [];
+        for (const machine of filteredMachines) {
+          const machineRes = await fetch(machine.machine.url);
+          const machineData = await machineRes.json();
+          
+          // Get TM number and item details
+          const itemRes = await fetch(machineData.item.url);
+          const itemData = await itemRes.json();
+          
+          const versionGroup = machine.version_group.name;
+          const tmNumber = machineData.id;
+          
+          // Get flavor text (location description) for this version group
+          const flavorTexts = itemData.flavor_text_entries.filter((entry: any) => 
+            entry.language.name === 'en' && 
+            entry.version_group.name === versionGroup
+          );
+          
+          const locationDesc = flavorTexts.length > 0 
+            ? flavorTexts[0].text.replace(/\n/g, ' ')
+            : 'Location unknown';
+          
+          tmLocations.push({
+            tmNumber,
+            versionGroup,
+            location: locationDesc,
+            itemName: itemData.name,
+          });
+        }
+        
+        const displayName = locationParsed.game 
+          ? `(${locationParsed.game})`
+          : locationParsed.generation
+          ? `(Gen ${locationParsed.generation})`
+          : '';
+        
+        addMessage({
+          type: 'tm_location',
+          content: {
+            moveName: moveData.name.replace(/-/g, ' '),
+            tmLocations,
+            displayName,
+          },
+        });
+        
+      } catch (err) {
+        addMessage({
+          type: 'error',
+          content: 'Failed to load TM location data.',
+        });
+      }
+      
       setIsLoading(false);
       return;
     }
@@ -1157,6 +1273,37 @@ function MessageCard({ message }: { message: Message }) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (message.type === 'tm_location') {
+    const { moveName, tmLocations, displayName } = message.content;
+    
+    return (
+      <div className="flex justify-start w-full">
+        <div className="border rounded-lg p-4 w-full max-w-5xl bg-card">
+          <h4 className="font-semibold mb-3 capitalize">
+            TM Location - {moveName} {displayName}
+          </h4>
+          <div className="space-y-3">
+            {tmLocations.map((tm: any, index: number) => (
+              <div key={index} className="border rounded-lg p-3">
+                <div className="flex items-start gap-3 mb-2">
+                  <span className="font-bold text-lg text-primary">
+                    {tm.itemName.toUpperCase().replace(/-/g, '')}
+                  </span>
+                  <div className="flex-1">
+                    <span className="text-xs px-2 py-0.5 rounded bg-primary/10 capitalize font-medium">
+                      {tm.versionGroup.replace(/-/g, ' ')}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-sm">{tm.location}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
