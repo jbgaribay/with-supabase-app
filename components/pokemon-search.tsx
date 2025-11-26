@@ -488,7 +488,7 @@ Examples:
 
               if (filteredEncounters.length === 0) continue;
 
-              const methods: string[] = [...new Set(filteredEncounters.map((ed: any) => ed.method.name))];
+              const methods: string[] = [...new Set<string>(filteredEncounters.map((ed: any) => ed.method.name as string))];
               const methodsFormatted = methods.map((m: string) => 
                 m.split("-").map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
               );
