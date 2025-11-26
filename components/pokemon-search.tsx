@@ -38,7 +38,7 @@ const GAME_TO_VERSION_GROUP: Record<string, string> = {
 
 interface Message {
   id: string;
-  type: 'user' | 'system' | 'pokemon' | 'moves' | 'locations' | 'evolution' | 'breeding' | 'effectiveness' | 'error';
+  type: 'user' | 'system' | 'pokemon' | 'moves' | 'locations' | 'tm_location' | 'evolution' | 'breeding' | 'effectiveness' | 'error';
   content: any;
   timestamp: Date;
 }
@@ -101,9 +101,19 @@ export function PokemonSearch() {
     generation?: number; 
     game?: string;
     versionGroups?: string[];
+    modifiers?: string[];
   } => {
     const parts = input.toLowerCase().trim().split(/\s+/);
     const command = parts[0];
+    const modifiers: string[] = [];
+
+    // Check for modifiers (best, walk, surf, fish, rod)
+    const modifierKeywords = ['best', 'walk', 'surf', 'fish', 'rod', 'grass'];
+    parts.forEach(part => {
+      if (modifierKeywords.includes(part)) {
+        modifiers.push(part);
+      }
+    });
 
     // Check if it has "gen X" pattern
     const genIndex = parts.indexOf('gen');
@@ -112,7 +122,7 @@ export function PokemonSearch() {
       
       // Check if there's a game name after the generation
       if (parts[genIndex + 2]) {
-        const game = parts.slice(genIndex + 2).join('-');
+        const game = parts.slice(genIndex + 2).filter(p => !modifierKeywords.includes(p)).join('-');
         const versionGroup = GAME_TO_VERSION_GROUP[game];
         
         return {
@@ -120,6 +130,7 @@ export function PokemonSearch() {
           generation,
           game,
           versionGroups: versionGroup ? [versionGroup] : undefined,
+          modifiers,
         };
       }
       
@@ -128,12 +139,13 @@ export function PokemonSearch() {
         command,
         generation,
         versionGroups: GEN_VERSION_GROUPS[generation],
+        modifiers,
       };
     }
 
     // Check if it's just a game name (e.g., "location firered")
     if (parts.length > 1) {
-      const potentialGame = parts.slice(1).join('-');
+      const potentialGame = parts.slice(1).filter(p => !modifierKeywords.includes(p)).join('-');
       const versionGroup = GAME_TO_VERSION_GROUP[potentialGame];
       
       if (versionGroup) {
@@ -147,11 +159,12 @@ export function PokemonSearch() {
           game: potentialGame,
           generation: generation ? parseInt(generation) : undefined,
           versionGroups: [versionGroup],
+          modifiers,
         };
       }
     }
 
-    return { command };
+    return { command, modifiers };
   };
 
   const fetchPokemonData = async (query: string): Promise<PokemonData | null> => {
@@ -249,25 +262,33 @@ export function PokemonSearch() {
 • clear - Clear chat history
 
 After searching a Pokémon:
-• moves - Show all level-up moves
-• moves gen X - Show all moves for generation X
-• moves gen X [game] - Show moves for specific game
-• learnset gen X - Show only level-up moves for gen X
-• tm gen X - Show only TM/HM moves for gen X
-• egg gen X - Show only egg moves for gen X
-• tutor gen X - Show only tutor moves for gen X
+• moves - Show ALL moves (level-up + TM + egg + tutor)
+• moves gen X - All moves for generation X
+• moves gen X [game] - All moves for specific game
+• learnset - Show ONLY level-up moves
+• learnset gen X - Gen X level-up moves only
+• tm / tms - Show ONLY TM/HM moves
+• tm gen X - Gen X TM/HM moves only
+• tm gen X [game] - Specific game TMs (e.g., tm gen 3 firered)
+• egg - Show ONLY egg moves
+• tutor - Show ONLY tutor moves
 • locations - Show all encounter locations
 • location gen X - Show locations for generation X
 • location [game] - Show locations for specific game
+• location best - Show only the best location
+• location walk/surf/fish - Filter by method
+• [move name] location - Find TM location (e.g., thunderbolt location gen 3)
 • evo - Show evolution chain
 • breeding - Show breeding info
 • type - Show type effectiveness
 
 Examples:
-• moves gen 3 - All Gen 3 moves
-• learnset gen 3 firered - FireRed level-up moves
-• tm gen 4 platinum - Platinum TMs
-• location emerald - Emerald locations`,
+• moves - All moves from all games
+• learnset gen 3 - Gen 3 level-up moves
+• tm gen 3 firered - FireRed TMs only
+• tms gen 4 platinum - Platinum TMs only
+• location emerald - Emerald locations
+• location best - Best location only`,
       });
       setIsLoading(false);
       return;
@@ -288,7 +309,7 @@ Examples:
 
     // Context-aware commands (require current pokemon)
     const parsed = parseCommand(cmdLower);
-    const commandTypes = ['moves', 'learnset', 'tm', 'egg', 'tutor', 'locations', 'location', 'evo', 'evolution', 'breeding', 'breed', 'type', 'effectiveness'];
+    const commandTypes = ['moves', 'learnset', 'tm', 'tms', 'egg', 'tutor', 'locations', 'location', 'evo', 'evolution', 'breeding', 'breed', 'type', 'effectiveness'];
     
     if (commandTypes.includes(parsed.command)) {
       if (!currentPokemon) {
@@ -301,12 +322,15 @@ Examples:
       }
 
       // Handle moves-related commands
-      if (['moves', 'learnset', 'tm', 'egg', 'tutor'].includes(parsed.command)) {
+      if (['moves', 'learnset', 'tm', 'tms', 'egg', 'tutor'].includes(parsed.command)) {
         try {
           const pokemonRes = await fetch(`https://pokeapi.co/api/v2/pokemon/${currentPokemon.id}`);
           const pokemon = await pokemonRes.json();
 
           let moveType = parsed.command;
+          // Normalize 'tms' to 'tm'
+          if (moveType === 'tms') moveType = 'tm';
+          
           let filteredMoves = pokemon.moves;
 
           // Filter by learn method
@@ -405,15 +429,13 @@ Examples:
           });
         }
       } else if (parsed.command === 'locations' || parsed.command === 'location') {
-      } else if (parsed.command === 'locations' || parsed.command === 'location') {
         try {
           const pokemonRes = await fetch(`https://pokeapi.co/api/v2/pokemon/${currentPokemon.id}`);
           const pokemon = await pokemonRes.json();
           const encountersRes = await fetch(pokemon.location_area_encounters);
           const encountersData = await encountersRes.json();
 
-          const locations = [];
-          const locationMap = new Map();
+          const locationsByGame: Record<string, any[]> = {};
 
           // Version name to version group for filtering
           const versionToGroup: Record<string, string> = {
@@ -444,47 +466,87 @@ Examples:
               const versionGroup = versionToGroup[game];
 
               // Filter by version group if specified
-              // If no filter, include all versions
-              if (parsed.versionGroups) {
-                if (!parsed.versionGroups.includes(versionGroup)) {
-                  continue;
-                }
+              if (parsed.versionGroups && !parsed.versionGroups.includes(versionGroup)) {
+                continue;
               }
 
-              const methods = versionDetail.encounter_details.map((ed: any) => 
-                ed.method.name
-                  .split("-")
-                  .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-                  .join(" ")
+              const encounterDetails = versionDetail.encounter_details;
+              
+              // Filter by method if specified
+              let filteredEncounters = encounterDetails;
+              if (parsed.modifiers && parsed.modifiers.length > 0 && !parsed.modifiers.includes('best')) {
+                filteredEncounters = encounterDetails.filter((ed: any) => {
+                  const methodName = ed.method.name.toLowerCase();
+                  return parsed.modifiers!.some(mod => {
+                    if (mod === 'walk' || mod === 'grass') return methodName.includes('walk');
+                    if (mod === 'surf') return methodName.includes('surf');
+                    if (mod === 'fish' || mod === 'rod') return methodName.includes('rod') || methodName.includes('fish');
+                    return false;
+                  });
+                });
+              }
+
+              if (filteredEncounters.length === 0) continue;
+
+              const methods: string[] = [...new Set<string>(filteredEncounters.map((ed: any) => ed.method.name as string))];
+              const methodsFormatted = methods.map((m: string) => 
+                m.split("-").map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
               );
 
-              const levels = versionDetail.encounter_details.map((ed: any) => ({
+              const levels = filteredEncounters.map((ed: any) => ({
                 min: ed.min_level,
                 max: ed.max_level,
               }));
 
+              const chances = filteredEncounters.map((ed: any) => ed.chance);
+              const maxChance = Math.max(...chances);
+
               const minLevel = Math.min(...levels.map((l: { min: number; max: number }) => l.min));
               const maxLevel = Math.max(...levels.map((l: { min: number; max: number }) => l.max));
-              const levelRange = minLevel === maxLevel ? `Lv. ${minLevel}` : `Lv. ${minLevel}-${maxLevel}`;
 
-              const key = `${locationName}-${levelRange}`;
-              
-              if (locationMap.has(key)) {
-                const existing = locationMap.get(key);
-                existing.methods = [...new Set([...existing.methods, ...methods])];
-                existing.games = [...new Set([...existing.games, game])];
-              } else {
-                locationMap.set(key, {
-                  location: locationName,
-                  methods,
-                  games: [game],
-                  levelRange,
-                });
+              // Get time of day / condition info
+              const conditions: string[] = [];
+              filteredEncounters.forEach((ed: any) => {
+                if (ed.condition_values && ed.condition_values.length > 0) {
+                  ed.condition_values.forEach((cv: any) => {
+                    const condName = cv.name
+                      .split("-")
+                      .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                      .join(" ");
+                    if (!conditions.includes(condName)) {
+                      conditions.push(condName);
+                    }
+                  });
+                }
+              });
+
+              if (!locationsByGame[game]) {
+                locationsByGame[game] = [];
               }
+
+              locationsByGame[game].push({
+                location: locationName,
+                methods: methodsFormatted,
+                minLevel,
+                maxLevel,
+                encounterRate: maxChance,
+                conditions: conditions.length > 0 ? conditions : null,
+              });
             }
           }
 
-          locations.push(...Array.from(locationMap.values()).slice(0, 20));
+          // Sort locations within each game by encounter rate (descending), then by min level (ascending)
+          Object.keys(locationsByGame).forEach(game => {
+            locationsByGame[game].sort((a, b) => {
+              if (b.encounterRate !== a.encounterRate) {
+                return b.encounterRate - a.encounterRate;
+              }
+              return a.minLevel - b.minLevel;
+            });
+          });
+
+          // Check if user wants only the best location
+          const bestOnly = parsed.modifiers?.includes('best');
 
           const displayName = parsed.game 
             ? `${currentPokemon.name} (${parsed.game})`
@@ -494,7 +556,11 @@ Examples:
 
           addMessage({
             type: 'locations',
-            content: { pokemon: displayName, locations },
+            content: { 
+              pokemon: displayName, 
+              locationsByGame,
+              bestOnly,
+            },
           });
         } catch (err) {
           const displayName = parsed.game 
@@ -505,7 +571,7 @@ Examples:
             
           addMessage({
             type: 'locations',
-            content: { pokemon: displayName, locations: [] },
+            content: { pokemon: displayName, locationsByGame: {}, bestOnly: false },
           });
         }
       } else if (parsed.command === 'evo' || parsed.command === 'evolution') {
@@ -589,6 +655,121 @@ Examples:
         });
       }
 
+      setIsLoading(false);
+      return;
+    }
+
+    // Check if this is a TM location query (e.g., "thunderbolt location gen 3")
+    if (cmdLower.includes(' location')) {
+      const parts = cmdLower.split(' location');
+      const moveName = parts[0].trim().replace(/\s+/g, '-');
+      const locationQuery = parts[1] ? parts[1].trim() : '';
+      
+      // Parse generation/game from the location query
+      const locationParsed = parseCommand('location ' + locationQuery);
+      
+      try {
+        setIsLoading(true);
+        
+        // Fetch move data
+        const moveRes = await fetch(`https://pokeapi.co/api/v2/move/${moveName}`);
+        if (!moveRes.ok) {
+          addMessage({
+            type: 'error',
+            content: `Move "${moveName.replace(/-/g, ' ')}" not found.`,
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        const moveData = await moveRes.json();
+        const moveMachines = moveData.machines || [];
+        
+        if (moveMachines.length === 0) {
+          addMessage({
+            type: 'error',
+            content: `"${moveData.name.replace(/-/g, ' ')}" is not a TM/HM move.`,
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        // Filter by version group if specified
+        let filteredMachines = moveMachines;
+        if (locationParsed.versionGroups) {
+          filteredMachines = moveMachines.filter((machine: any) => {
+            const vgName = machine.version_group.name;
+            return locationParsed.versionGroups!.includes(vgName);
+          });
+        }
+        
+        if (filteredMachines.length === 0) {
+          const displayName = locationParsed.game 
+            ? `in ${locationParsed.game}`
+            : locationParsed.generation
+            ? `in Gen ${locationParsed.generation}`
+            : '';
+          addMessage({
+            type: 'error',
+            content: `"${moveData.name.replace(/-/g, ' ')}" is not available as a TM/HM ${displayName}.`,
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        // Fetch machine details for each
+        const tmLocations = [];
+        for (const machine of filteredMachines) {
+          const machineRes = await fetch(machine.machine.url);
+          const machineData = await machineRes.json();
+          
+          // Get TM number and item details
+          const itemRes = await fetch(machineData.item.url);
+          const itemData = await itemRes.json();
+          
+          const versionGroup = machine.version_group.name;
+          const tmNumber = machineData.id;
+          
+          // Get flavor text (location description) for this version group
+          const flavorTexts = itemData.flavor_text_entries.filter((entry: any) => 
+            entry.language.name === 'en' && 
+            entry.version_group.name === versionGroup
+          );
+          
+          const locationDesc = flavorTexts.length > 0 
+            ? flavorTexts[0].text.replace(/\n/g, ' ')
+            : 'Location unknown';
+          
+          tmLocations.push({
+            tmNumber,
+            versionGroup,
+            location: locationDesc,
+            itemName: itemData.name,
+          });
+        }
+        
+        const displayName = locationParsed.game 
+          ? `(${locationParsed.game})`
+          : locationParsed.generation
+          ? `(Gen ${locationParsed.generation})`
+          : '';
+        
+        addMessage({
+          type: 'tm_location',
+          content: {
+            moveName: moveData.name.replace(/-/g, ' '),
+            tmLocations,
+            displayName,
+          },
+        });
+        
+      } catch (err) {
+        addMessage({
+          type: 'error',
+          content: 'Failed to load TM location data.',
+        });
+      }
+      
       setIsLoading(false);
       return;
     }
@@ -821,49 +1002,134 @@ function MessageCard({ message }: { message: Message }) {
   }
 
   if (message.type === 'locations') {
-    const { pokemon, locations } = message.content;
-    return (
-      <div className="flex justify-start">
-        <div className="border rounded-lg p-4 max-w-[95%] bg-card">
-          <h4 className="font-semibold mb-3 capitalize">Locations - {pokemon}</h4>
-          {locations.length > 0 ? (
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-accent">
-                  <tr>
-                    <th className="text-left p-2">Location</th>
-                    <th className="text-left p-2">Method</th>
-                    <th className="text-left p-2">Level</th>
-                    <th className="text-left p-2">Games</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {locations.map((location: any, index: number) => (
-                    <tr key={index} className="border-t">
-                      <td className="p-2">{location.location}</td>
-                      <td className="p-2">{location.methods.join(", ")}</td>
-                      <td className="p-2">{location.levelRange}</td>
-                      <td className="p-2">
-                        <div className="flex gap-1 flex-wrap">
-                          {location.games.map((game: string) => (
-                            <span
-                              key={game}
-                              className="px-1.5 py-0.5 rounded text-xs bg-primary/10 capitalize"
-                            >
-                              {game}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
+    const { pokemon, locationsByGame = {}, bestOnly = false } = message.content;
+    const [currentPage, setCurrentPage] = useState(1);
+    const LOCATIONS_PER_PAGE = 20;
+
+    const games = Object.keys(locationsByGame || {});
+    
+    if (games.length === 0) {
+      return (
+        <div className="flex justify-start">
+          <div className="border rounded-lg p-4 w-full max-w-5xl bg-card">
+            <h4 className="font-semibold mb-3 capitalize">Locations - {pokemon}</h4>
             <p className="text-sm text-muted-foreground">
               No wild encounter locations found. This Pokémon may be obtained through evolution, trading, or events.
             </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Flatten all locations for pagination (unless bestOnly)
+    let allLocationsFlat: Array<{ game: string; location: any; isBest?: boolean }> = [];
+    
+    if (bestOnly) {
+      // Only show the best location from each game
+      games.forEach(game => {
+        if (locationsByGame[game] && locationsByGame[game].length > 0) {
+          allLocationsFlat.push({
+            game,
+            location: locationsByGame[game][0],
+            isBest: true,
+          });
+        }
+      });
+    } else {
+      // Show all locations, grouped by game
+      games.forEach(game => {
+        if (locationsByGame[game]) {
+          locationsByGame[game].forEach((loc: any, idx: number) => {
+            allLocationsFlat.push({
+              game,
+              location: loc,
+              isBest: idx === 0, // First location in each game is the best
+            });
+          });
+        }
+      });
+    }
+
+    const totalPages = Math.ceil(allLocationsFlat.length / LOCATIONS_PER_PAGE);
+    const startIndex = (currentPage - 1) * LOCATIONS_PER_PAGE;
+    const endIndex = startIndex + LOCATIONS_PER_PAGE;
+    const currentLocations = allLocationsFlat.slice(startIndex, endIndex);
+
+    return (
+      <div className="flex justify-start w-full">
+        <div className="border rounded-lg p-4 w-full max-w-5xl bg-card">
+          <h4 className="font-semibold mb-3 capitalize">
+            {bestOnly ? 'Best Locations' : 'Locations'} - {pokemon}
+          </h4>
+          <div className="grid grid-cols-2 gap-3">
+            {currentLocations.map((item, index) => {
+              const loc = item.location;
+              const levelRange = loc.minLevel === loc.maxLevel 
+                ? `Lv. ${loc.minLevel}` 
+                : `Lv. ${loc.minLevel}-${loc.maxLevel}`;
+
+              return (
+                <div
+                  key={`${item.game}-${index}`}
+                  className={`border rounded-lg p-2.5 ${
+                    item.isBest ? 'border-primary/50 bg-primary/5' : ''
+                  }`}
+                >
+                  <div className="mb-1.5">
+                    <span className="font-medium text-sm">{loc.location}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
+                    <span className="px-1.5 py-0.5 rounded bg-primary/10 capitalize font-medium">
+                      {item.game}
+                    </span>
+                    <span>{levelRange}</span>
+                    <span className="font-semibold text-green-600">{loc.encounterRate}%</span>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-1 text-xs">
+                    {loc.methods.map((method: string, idx: number) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-0.5 rounded bg-accent"
+                      >
+                        {method}
+                      </span>
+                    ))}
+                  </div>
+
+                  {loc.conditions && (
+                    <div className="mt-1.5 text-xs text-muted-foreground">
+                      <span className="font-medium">Conditions:</span> {loc.conditions.join(', ')}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-3 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -1007,6 +1273,37 @@ function MessageCard({ message }: { message: Message }) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (message.type === 'tm_location') {
+    const { moveName, tmLocations, displayName } = message.content;
+    
+    return (
+      <div className="flex justify-start w-full">
+        <div className="border rounded-lg p-4 w-full max-w-5xl bg-card">
+          <h4 className="font-semibold mb-3 capitalize">
+            TM Location - {moveName} {displayName}
+          </h4>
+          <div className="space-y-3">
+            {tmLocations.map((tm: any, index: number) => (
+              <div key={index} className="border rounded-lg p-3">
+                <div className="flex items-start gap-3 mb-2">
+                  <span className="font-bold text-lg text-primary">
+                    {tm.itemName.toUpperCase().replace(/-/g, '')}
+                  </span>
+                  <div className="flex-1">
+                    <span className="text-xs px-2 py-0.5 rounded bg-primary/10 capitalize font-medium">
+                      {tm.versionGroup.replace(/-/g, ' ')}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-sm">{tm.location}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
