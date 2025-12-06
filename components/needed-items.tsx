@@ -173,7 +173,7 @@ export function NeededItems({ journeyId, journeyGames, caughtPokemonIds }: Neede
   if (items.length === 0) {
     return (
       <div className="border rounded-lg p-8 text-center text-muted-foreground">
-        <p>No evolution items needed! 🎉</p>
+        <p>No evolution items needed!</p>
       </div>
     );
   }
